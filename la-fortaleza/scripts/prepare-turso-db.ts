@@ -225,15 +225,6 @@ async function main() {
   }
   console.log(`✓ Productos importados: ${inserted}`);
 
-  // Cerrar handle del ORM y consolidar archivo limpio
-  const { getLocalSqlite } = await import("../lib/db");
-  const sqlite = getLocalSqlite();
-  if (!sqlite) throw new Error("SQLite local no disponible");
-  sqlite.pragma("wal_checkpoint(TRUNCATE)");
-  sqlite.pragma("journal_mode = DELETE");
-  sqlite.exec("VACUUM");
-  sqlite.close();
-
   for (const suffix of ["-wal", "-shm", "-journal"]) {
     const f = `${outDb}${suffix}`;
     if (fs.existsSync(f)) fs.unlinkSync(f);
