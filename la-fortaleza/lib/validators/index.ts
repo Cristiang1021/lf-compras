@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   COMPRA_FIELDS,
+  MAIL_ENCRYPTIONS,
   MODULES,
   PRODUCCION_FIELDS,
   PRODUCTO_FIELDS,
@@ -17,8 +18,37 @@ export const createUserSchema = z.object({
   username: z.string().min(3).max(64),
   password: z.string().min(6).max(128),
   fullName: z.string().min(2).max(120),
+  email: z.string().email().max(180).optional().nullable(),
   role: z.enum(ROLES),
   isActive: z.boolean().optional().default(true),
+});
+
+export const inviteUserSchema = z.object({
+  email: z.string().email().max(180),
+  role: z.enum(ROLES),
+  fullName: z.string().max(120).optional().nullable(),
+});
+
+export const acceptInviteSchema = z.object({
+  username: z.string().min(3).max(64),
+  password: z.string().min(6).max(128),
+  fullName: z.string().min(2).max(120),
+});
+
+export const mailServerSchema = z.object({
+  name: z.string().min(2).max(80),
+  fromEmail: z.string().email().max(180),
+  fromName: z.string().max(80).optional().nullable(),
+  smtpHost: z.string().min(3).max(180),
+  smtpPort: z.number().int().min(1).max(65535),
+  encryption: z.enum(MAIL_ENCRYPTIONS),
+  username: z.string().min(1).max(180),
+  password: z.string().max(200).optional().nullable(),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const testMailSchema = z.object({
+  to: z.string().email().max(180),
 });
 
 export const updateUserSchema = z

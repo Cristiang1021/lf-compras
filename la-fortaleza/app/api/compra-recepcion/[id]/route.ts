@@ -9,6 +9,7 @@ import {
   pickAllowedFields,
   requirePermission,
 } from "@/lib/permissions";
+import { todayISODate } from "@/lib/dates";
 import { compraRecepcionUpdateSchema } from "@/lib/validators";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -88,6 +89,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
         perm.fieldAccess,
         RECEPCION_FIELDS,
       );
+      delete allowed.fechaRecepcion;
       if (Object.keys(allowed).length === 0) {
         return jsonError(
           "No tienes permiso para llenar campos de recepción",
@@ -97,7 +99,10 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
       await db
         .update(compraLineas)
-        .set({ ...allowed })
+        .set({
+          ...allowed,
+          fechaRecepcion: existing.fechaRecepcion || todayISODate(),
+        })
         .where(eq(compraLineas.id, linea.id));
     }
 

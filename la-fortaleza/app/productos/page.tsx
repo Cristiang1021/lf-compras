@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, downloadExport } from "@/lib/client/api";
 import { useAuth } from "@/lib/client/auth";
 import { Alert, Panel } from "@/components/ui/Panel";
+import { UmMark } from "@/components/ui/UmMark";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
 
 type Product = {
@@ -128,7 +129,9 @@ export default function ProductosPage() {
                   <tr key={r.id}>
                     <td>{r.codigo}</td>
                     <td>{r.producto}</td>
-                    <td>{r.unidadMedida}</td>
+                    <td>
+                      <UmMark value={r.unidadMedida} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

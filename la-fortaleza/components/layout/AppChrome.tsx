@@ -16,6 +16,7 @@ const MAIN = [
 
 const ADMIN = [
   { href: "/admin/usuarios", label: "Usuarios", module: "usuarios" },
+  { href: "/admin/correo", label: "Correo", module: "usuarios" },
   { href: "/admin/permisos", label: "Permisos", module: "permisos" },
 ] as const;
 
@@ -23,6 +24,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const { user, logout, can, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+
+  const publicPage =
+    pathname === "/login" || pathname.startsWith("/invitar/");
+
+  if (publicPage) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
@@ -71,6 +79,9 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               <div className="sidebar-section">Administración</div>
               {ADMIN.map((item) => {
                 if (!can(item.module, "canRead")) return null;
+                if (item.href === "/admin/correo" && user.role !== "SUPER_USUARIO") {
+                  return null;
+                }
                 const active = pathname === item.href;
                 return (
                   <Link

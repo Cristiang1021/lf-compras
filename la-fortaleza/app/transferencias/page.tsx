@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { api, downloadExport } from "@/lib/client/api";
 import { useAuth } from "@/lib/client/auth";
 import { Alert, Panel } from "@/components/ui/Panel";
+import { UmMark } from "@/components/ui/UmMark";
 import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
+import { todayISODate } from "@/lib/dates";
+import { productWithUm } from "@/lib/client/labels";
 
 type Bodega = { id: string; nombre: string };
 type LineaDraft = {
@@ -50,7 +53,7 @@ function emptyLinea(p?: Product | null): LineaDraft {
     producto: p?.producto || "",
     unidadMedida: p?.unidadMedida || "",
     cantidad: "",
-    fechaTransferencia: "",
+    fechaTransferencia: todayISODate(),
     origenBodegaId: "",
     destinoBodegaId: "",
     observacion: "",
@@ -111,7 +114,10 @@ export default function TransferenciasPage() {
       return;
     }
     setError(null);
-    setLineas((prev) => [...prev, { ...draft, key: crypto.randomUUID() }]);
+    setLineas((prev) => [
+      ...prev,
+      { ...draft, key: crypto.randomUUID(), fechaTransferencia: todayISODate() },
+    ]);
     setProduct(null);
     setDraft(emptyLinea());
   }
@@ -213,7 +219,9 @@ export default function TransferenciasPage() {
                   <tr key={l.key}>
                     <td>{l.producto}</td>
                     <td className="micro">{l.codigo}</td>
-                    <td>{l.unidadMedida}</td>
+                    <td>
+                      <UmMark value={l.unidadMedida} />
+                    </td>
                     {fieldOk("transferencias", "cantidad") && (
                       <td>{l.cantidad || "—"}</td>
                     )}
@@ -267,17 +275,7 @@ export default function TransferenciasPage() {
                   )}
                   {fieldOk("transferencias", "fechaTransferencia") && (
                     <td>
-                      <input
-                        className="input"
-                        type="date"
-                        value={draft.fechaTransferencia}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            fechaTransferencia: e.target.value,
-                          })
-                        }
-                      />
+                      <span className="date-lock">{todayISODate()}</span>
                     </td>
                   )}
                   {fieldOk("transferencias", "origenBodegaId") && (
@@ -408,7 +406,7 @@ export default function TransferenciasPage() {
                       <div className="micro muted">
                         {d.lineas
                           .slice(0, 2)
-                          .map((l) => l.producto)
+                          .map((l) => productWithUm(l.producto, l.unidadMedida))
                           .join(", ")}
                         {d.lineas.length > 2 ? "…" : ""}
                       </div>
@@ -440,7 +438,7 @@ export default function TransferenciasPage() {
 
       {activo && (
         <div className="modal-scrim" role="dialog" aria-modal>
-          <div className="modal-card" style={{ width: "min(100%, 900px)" }}>
+          <div className="modal-card modal-card-wide">
             <h2 className="heading-lg" style={{ marginBottom: 8 }}>
               Transferencia — {activo.titulo || "Detalle"}
             </h2>
@@ -465,11 +463,13 @@ export default function TransferenciasPage() {
                   {activo.lineas.map((l) => (
                     <tr key={l.id}>
                       <td>
-                        {l.codigo}
-                        <div className="micro">{l.producto}</div>
+                        <strong>{l.producto}</strong>
+                        <div className="micro">{l.codigo}</div>
                       </td>
                       <td>{l.cantidad ?? "—"}</td>
-                      <td>{l.unidadMedida}</td>
+                      <td>
+                        <UmMark value={l.unidadMedida} />
+                      </td>
                       <td>{l.fechaTransferencia || "—"}</td>
                       <td>{bodegaNombre(l.origenBodegaId)}</td>
                       <td>{bodegaNombre(l.destinoBodegaId)}</td>
@@ -479,7 +479,7 @@ export default function TransferenciasPage() {
                 </tbody>
               </table>
             </div>
-            <div className="row" style={{ marginTop: 16, justifyContent: "flex-end" }}>
+            <div className="modal-actions">
               <button
                 type="button"
                 className="btn btn-secondary"

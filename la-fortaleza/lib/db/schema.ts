@@ -51,6 +51,12 @@ export const PRODUCTO_FIELDS = ["codigo", "producto", "unidadMedida"] as const;
 
 export type FieldAccessMap = Record<string, boolean>;
 
+export const MAIL_ENCRYPTIONS = ["none", "starttls", "ssl"] as const;
+export type MailEncryption = (typeof MAIL_ENCRYPTIONS)[number];
+
+export const INVITE_STATUSES = ["pendiente", "aceptada", "cancelada"] as const;
+export type InviteStatus = (typeof INVITE_STATUSES)[number];
+
 export const users = sqliteTable(
   "users",
   {
@@ -58,6 +64,7 @@ export const users = sqliteTable(
     username: text("username").notNull(),
     passwordHash: text("password_hash").notNull(),
     fullName: text("full_name").notNull(),
+    email: text("email"),
     role: text("role").$type<Role>().notNull(),
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     createdAt: text("created_at")
@@ -67,7 +74,45 @@ export const users = sqliteTable(
       .notNull()
       .default(sql`(datetime('now'))`),
   },
-  (t) => [uniqueIndex("users_username_uidx").on(t.username)],
+  (t) => [
+    uniqueIndex("users_username_uidx").on(t.username),
+    uniqueIndex("users_email_uidx").on(t.email),
+  ],
+);
+
+export const mailServers = sqliteTable("mail_servers", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  smtpHost: text("smtp_host").notNull(),
+  smtpPort: integer("smtp_port").notNull(),
+  encryption: text("encryption").$type<MailEncryption>().notNull().default("ssl"),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const invitations = sqliteTable(
+  "invitations",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    role: text("role").$type<Role>().notNull(),
+    fullName: text("full_name"),
+    tokenHash: text("token_hash").notNull(),
+    status: text("status").$type<InviteStatus>().notNull().default("pendiente"),
+    invitedBy: text("invited_by").references(() => users.id),
+    expiresAt: text("expires_at").notNull(),
+    acceptedAt: text("accepted_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [uniqueIndex("invitations_token_uidx").on(t.tokenHash)],
 );
 
 export const rolePermissions = sqliteTable(
@@ -223,6 +268,8 @@ export const produccionLineas = sqliteTable("produccion_lineas", {
 });
 
 export type User = typeof users.$inferSelect;
+export type MailServer = typeof mailServers.$inferSelect;
+export type Invitation = typeof invitations.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Bodega = typeof bodegas.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;

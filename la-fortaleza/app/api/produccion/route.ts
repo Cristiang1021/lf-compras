@@ -7,6 +7,7 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { produccionDocs, produccionLineas } from "@/lib/db/schema";
 import { pickAllowedFields, requirePermission } from "@/lib/permissions";
 import { getActiveProductOrThrow, productSnapshot } from "@/lib/services/products";
+import { todayISODate } from "@/lib/dates";
 import { FIELD_KEYS, produccionDocCreateSchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
         orden,
         ...productSnapshot(product),
         cantidad: fields.cantidad ?? null,
-        fechaProduccion: fields.fechaProduccion ?? null,
+        fechaProduccion: todayISODate(),
         detalleProduccion: fields.detalleProduccion ?? null,
         origenBodegaId: fields.origenBodegaId ?? null,
         destinoBodegaId: fields.destinoBodegaId ?? null,

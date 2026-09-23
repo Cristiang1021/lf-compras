@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
+import { UmMark } from "@/components/ui/UmMark";
 
 export type Product = {
   id: string;
@@ -95,7 +96,7 @@ export function ProductPicker({
           <option value="">— Elegir —</option>
           {items.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.codigo} — {p.producto}
+              {p.codigo} — {p.producto} ({p.unidadMedida})
             </option>
           ))}
         </select>
@@ -105,7 +106,8 @@ export function ProductPicker({
           <div style={{ flex: 1 }}>
             <div className="ui-label">Código / unidad (automático)</div>
             <strong>{selected.codigo}</strong>
-            <span className="muted"> · {selected.unidadMedida}</span>
+            <span className="muted"> · </span>
+            <UmMark value={selected.unidadMedida} />
           </div>
           <span className="badge-amber">Auto</span>
         </div>

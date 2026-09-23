@@ -14,6 +14,7 @@ function publicUser(u: typeof users.$inferSelect) {
     id: u.id,
     username: u.username,
     fullName: u.fullName,
+    email: u.email,
     role: u.role,
     isActive: u.isActive,
     createdAt: u.createdAt,
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       username: body.username,
       passwordHash,
       fullName: body.fullName,
+      email: body.email?.trim().toLowerCase() || null,
       role: body.role,
       isActive: body.isActive ?? true,
     });

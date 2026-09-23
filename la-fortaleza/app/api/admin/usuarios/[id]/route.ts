@@ -15,6 +15,7 @@ function publicUser(u: typeof users.$inferSelect) {
     id: u.id,
     username: u.username,
     fullName: u.fullName,
+    email: u.email,
     role: u.role,
     isActive: u.isActive,
     createdAt: u.createdAt,

@@ -6,7 +6,7 @@ Control de inventario/restaurante. **Solo backend** por ahora (Next.js App Route
 
 - Next.js 16 (API routes)
 - TypeScript
-- Drizzle ORM + **better-sqlite3** (local)
+- Drizzle ORM + **@libsql/client** (SQLite local en tu PC, Turso en Vercel)
 - JWT (Bearer)
 - Zod + ExcelJS (export formato Excel)
 
@@ -14,14 +14,17 @@ Control de inventario/restaurante. **Solo backend** por ahora (Next.js App Route
 
 ```bash
 cd la-fortaleza
-cp .env.example .env   # si hace falta
+copy .env.example .env   # en Windows; en Mac/Linux: cp .env.example .env
 npm install
-npm run db:seed
-npm run db:import-productos -- "C:\ruta\Control LA FORTALEZA.xlsx"  # opcional
+npm run setup            # crea data/la-fortaleza.db y usuarios de prueba
 npm run dev
 ```
 
 Abre `http://localhost:3000` → login **`admin` / `Admin123!`**
+
+Otros usuarios de prueba: `contabilidad` / `Conta123!`, `chef` / `Chef123!`, `bodega` / `Bodega123!`.
+
+`.env` y `data/` no se suben a GitHub. En Vercel se usan las variables de Turso.
 
 ### Frontend (chrome Y2K)
 

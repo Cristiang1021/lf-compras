@@ -1,8 +1,9 @@
 import * as schema from "./schema";
+import type { Client } from "@libsql/client";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 
 /** Bump when schema tables change so hot-reload recreates drizzle query API. */
-const SCHEMA_VERSION = "docs-v3b-turso-vercel";
+const SCHEMA_VERSION = "docs-v5-mail-invites";
 
 export type AppDb = LibSQLDatabase<typeof schema>;
 
@@ -17,40 +18,14 @@ export function useTurso() {
 const globalForDb = globalThis as unknown as {
   __lfSchemaVersion?: string;
   __lfDb?: AppDb;
-  __lfTursoClient?: import("@libsql/client").Client;
-  __lfSqlite?: import("better-sqlite3").Database;
+  __lfLibsqlClient?: Client;
 };
 
-function createTursoDb(): AppDb {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require("@libsql/client") as typeof import("@libsql/client");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle } = require("drizzle-orm/libsql") as typeof import("drizzle-orm/libsql");
-
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-  if (!url) {
-    throw new Error("TURSO_DATABASE_URL es obligatorio cuando USE_TURSO=true");
-  }
-  if (!authToken) {
-    throw new Error("TURSO_AUTH_TOKEN es obligatorio cuando USE_TURSO=true");
-  }
-
-  const client = createClient({ url, authToken });
-  globalForDb.__lfTursoClient = client;
-  return drizzle(client, { schema });
-}
-
-function createLocalDb(): AppDb {
+function resolveLocalFileUrl(): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require("node:fs") as typeof import("node:fs");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const path = require("node:path") as typeof import("node:path");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const Database = require("better-sqlite3") as typeof import("better-sqlite3");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle } =
-    require("drizzle-orm/better-sqlite3") as typeof import("drizzle-orm/better-sqlite3");
 
   const raw = process.env.DATABASE_URL ?? "file:./data/la-fortaleza.db";
   const filePath = raw.startsWith("file:") ? raw.slice("file:".length) : raw;
@@ -58,17 +33,34 @@ function createLocalDb(): AppDb {
     ? filePath
     : path.join(/*turbopackIgnore: true*/ process.cwd(), filePath);
   fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  return `file:${absolute.replace(/\\/g, "/")}`;
+}
 
-  const sqlite = new Database(absolute);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  globalForDb.__lfSqlite = sqlite;
-  // Misma superficie de API (select/insert/query) que libsql
-  return drizzle(sqlite, { schema }) as unknown as AppDb;
+function createLibsqlClient(): Client {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createClient } = require("@libsql/client") as typeof import("@libsql/client");
+
+  if (useTurso()) {
+    const url = process.env.TURSO_DATABASE_URL;
+    const authToken = process.env.TURSO_AUTH_TOKEN;
+    if (!url) {
+      throw new Error("TURSO_DATABASE_URL es obligatorio cuando USE_TURSO=true");
+    }
+    if (!authToken) {
+      throw new Error("TURSO_AUTH_TOKEN es obligatorio cuando USE_TURSO=true");
+    }
+    return createClient({ url, authToken });
+  }
+
+  return createClient({ url: resolveLocalFileUrl() });
 }
 
 function createDb(): AppDb {
-  return useTurso() ? createTursoDb() : createLocalDb();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { drizzle } = require("drizzle-orm/libsql") as typeof import("drizzle-orm/libsql");
+  const client = createLibsqlClient();
+  globalForDb.__lfLibsqlClient = client;
+  return drizzle(client, { schema });
 }
 
 const needsRefresh = globalForDb.__lfSchemaVersion !== SCHEMA_VERSION;
@@ -82,12 +74,12 @@ globalForDb.__lfDb = db;
 
 export type Db = typeof db;
 
-/** Cliente libSQL (solo Turso). */
+/** Cliente libSQL (Turso en producción o archivo local). */
 export function getTursoClient() {
-  return globalForDb.__lfTursoClient ?? null;
+  return globalForDb.__lfLibsqlClient ?? null;
 }
 
-/** Handle better-sqlite3 (solo local). */
-export function getLocalSqlite() {
-  return globalForDb.__lfSqlite ?? null;
+/** Alias de getTursoClient — ambos modos usan el mismo cliente. */
+export function getLibsqlClient() {
+  return globalForDb.__lfLibsqlClient ?? null;
 }

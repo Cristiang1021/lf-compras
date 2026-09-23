@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { api, downloadExport } from "@/lib/client/api";
 import { useAuth } from "@/lib/client/auth";
 import { Alert, Panel } from "@/components/ui/Panel";
+import { UmMark } from "@/components/ui/UmMark";
 import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
+import { todayISODate } from "@/lib/dates";
+import { productWithUm } from "@/lib/client/labels";
 
 type LineaDraft = {
   key: string;
@@ -51,7 +54,6 @@ export default function CompraPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [lineas, setLineas] = useState<LineaDraft[]>([]);
   const [cantidad, setCantidad] = useState("");
-  const [fechaPedido, setFechaPedido] = useState("");
   const [showExtra, setShowExtra] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [notas, setNotas] = useState("");
@@ -99,12 +101,11 @@ export default function CompraPage() {
         producto: product.producto,
         unidadMedida: product.unidadMedida,
         cantidad,
-        fechaPedido,
+        fechaPedido: todayISODate(),
       },
     ]);
     setProduct(null);
     setCantidad("");
-    setFechaPedido("");
   }
 
   const save = useConfirmSubmit(async () => {
@@ -138,7 +139,7 @@ export default function CompraPage() {
           l.cantidadRecibida === null || l.cantidadRecibida === undefined
             ? ""
             : String(l.cantidadRecibida),
-        fechaRecepcion: l.fechaRecepcion || "",
+        fechaRecepcion: l.fechaRecepcion || todayISODate(),
         facturaNotaVenta: l.facturaNotaVenta || "",
         observaciones: l.observaciones || "",
         proveedor: l.proveedor || "",
@@ -263,7 +264,9 @@ export default function CompraPage() {
                   <tr key={l.key}>
                     <td>{l.producto}</td>
                     <td>{l.codigo}</td>
-                    <td>{l.unidadMedida}</td>
+                    <td>
+                      <UmMark value={l.unidadMedida} />
+                    </td>
                     {fieldOk("compra_recepcion", "cantidad") && (
                       <td>{l.cantidad || "—"}</td>
                     )}
@@ -290,7 +293,9 @@ export default function CompraPage() {
                       onChange={setProduct}
                     />
                   </td>
-                  <td>{product?.unidadMedida || "—"}</td>
+                  <td>
+                    <UmMark value={product?.unidadMedida} />
+                  </td>
                   {fieldOk("compra_recepcion", "cantidad") && (
                     <td>
                       <input
@@ -305,12 +310,7 @@ export default function CompraPage() {
                   )}
                   {fieldOk("compra_recepcion", "fechaPedido") && (
                     <td>
-                      <input
-                        className="input"
-                        type="date"
-                        value={fechaPedido}
-                        onChange={(e) => setFechaPedido(e.target.value)}
-                      />
+                      <span className="date-lock">{todayISODate()}</span>
                     </td>
                   )}
                   <td>
@@ -402,7 +402,7 @@ export default function CompraPage() {
                       <div className="micro muted">
                         {d.lineas
                           .slice(0, 2)
-                          .map((l) => l.producto)
+                          .map((l) => productWithUm(l.producto, l.unidadMedida))
                           .join(", ")}
                         {d.lineas.length > 2 ? "…" : ""}
                       </div>
@@ -433,19 +433,20 @@ export default function CompraPage() {
 
       {activo && (
         <div className="modal-scrim" role="dialog" aria-modal>
-          <div className="modal-card" style={{ width: "min(100%, 820px)" }}>
+          <div className="modal-card modal-card-wide">
             <h2 className="heading-lg" style={{ marginBottom: 8 }}>
               Recepción — {activo.titulo || "Compra"}
             </h2>
             <p className="body-sm" style={{ marginTop: 0 }}>
-              Completa cantidad recibida, fecha, factura y observaciones por
-              producto.
+              Completa cantidad recibida, factura y observaciones por producto.
+              La fecha de recepción es la del día y no se puede cambiar.
             </p>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Producto</th>
+                    <th>U.M.</th>
                     <th>Pedida</th>
                     <th>Recibida</th>
                     <th>Fecha recepción</th>
@@ -458,7 +459,7 @@ export default function CompraPage() {
                   {activo.lineas.map((l) => {
                     const r = recepcion[l.id] || {
                       cantidadRecibida: "",
-                      fechaRecepcion: "",
+                      fechaRecepcion: todayISODate(),
                       facturaNotaVenta: "",
                       observaciones: "",
                       proveedor: "",
@@ -470,8 +471,11 @@ export default function CompraPage() {
                     return (
                       <tr key={l.id}>
                         <td>
-                          {l.codigo}
-                          <div className="micro">{l.producto}</div>
+                          <strong>{l.producto}</strong>
+                          <div className="micro">{l.codigo}</div>
+                        </td>
+                        <td>
+                          <UmMark value={l.unidadMedida} />
                         </td>
                         <td>{l.cantidad ?? "—"}</td>
                         <td>
@@ -497,28 +501,13 @@ export default function CompraPage() {
                           />
                         </td>
                         <td>
-                          <input
-                            className="input"
-                            type="date"
-                            disabled={
-                              soloLectura ||
-                              !fieldOk("compra_recepcion", "fechaRecepcion")
-                            }
-                            value={r.fechaRecepcion}
-                            onChange={(e) =>
-                              setRecepcion((prev) => ({
-                                ...prev,
-                                [l.id]: {
-                                  ...r,
-                                  fechaRecepcion: e.target.value,
-                                },
-                              }))
-                            }
-                          />
+                          <span className="date-lock">
+                            {r.fechaRecepcion || todayISODate()}
+                          </span>
                         </td>
-                        <td>
-                          <input
-                            className="input"
+                        <td className="col-text">
+                          <textarea
+                            className="textarea textarea-compact"
                             disabled={
                               soloLectura ||
                               !fieldOk("compra_recepcion", "facturaNotaVenta")
@@ -535,9 +524,9 @@ export default function CompraPage() {
                             }
                           />
                         </td>
-                        <td>
-                          <input
-                            className="input"
+                        <td className="col-text">
+                          <textarea
+                            className="textarea textarea-compact"
                             disabled={
                               soloLectura ||
                               !fieldOk("compra_recepcion", "proveedor")
@@ -551,9 +540,9 @@ export default function CompraPage() {
                             }
                           />
                         </td>
-                        <td>
-                          <input
-                            className="input"
+                        <td className="col-text">
+                          <textarea
+                            className="textarea textarea-compact"
                             disabled={
                               soloLectura ||
                               !fieldOk("compra_recepcion", "observaciones")
@@ -576,7 +565,7 @@ export default function CompraPage() {
                 </tbody>
               </table>
             </div>
-            <div className="row" style={{ marginTop: 16, justifyContent: "flex-end" }}>
+            <div className="modal-actions">
               <button
                 type="button"
                 className="btn btn-secondary"

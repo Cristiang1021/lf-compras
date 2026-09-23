@@ -7,6 +7,7 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { compraDocs, compraLineas } from "@/lib/db/schema";
 import { pickAllowedFields, requirePermission } from "@/lib/permissions";
 import { getActiveProductOrThrow, productSnapshot } from "@/lib/services/products";
+import { todayISODate } from "@/lib/dates";
 import { compraDocCreateSchema, FIELD_KEYS } from "@/lib/validators";
 
 export async function GET(request: Request) {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
         orden,
         ...productSnapshot(product),
         cantidad: fields.cantidad ?? null,
-        fechaPedido: fields.fechaPedido ?? null,
+        fechaPedido: todayISODate(),
         cantidadRecibida: fields.cantidadRecibida ?? null,
         proveedor: fields.proveedor ?? null,
         fechaRecepcion: fields.fechaRecepcion ?? null,

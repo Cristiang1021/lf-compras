@@ -33,3 +33,12 @@ const FIELD_LABELS: Record<string, string> = {
 export function fieldLabel(key: string) {
   return FIELD_LABELS[key] ?? key;
 }
+
+/** Nombre de producto con unidad de medida visible. */
+export function productWithUm(
+  producto: string,
+  unidadMedida?: string | null,
+) {
+  const um = unidadMedida?.trim();
+  return um ? `${producto} (${um})` : producto;
+}

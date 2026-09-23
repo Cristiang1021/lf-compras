@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { api, downloadExport } from "@/lib/client/api";
 import { useAuth } from "@/lib/client/auth";
 import { Alert, Panel } from "@/components/ui/Panel";
+import { UmMark } from "@/components/ui/UmMark";
 import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
+import { todayISODate } from "@/lib/dates";
+import { productWithUm } from "@/lib/client/labels";
 
 type Bodega = { id: string; nombre: string };
 type LineaDraft = {
@@ -52,7 +55,7 @@ function emptyLinea(p?: Product | null): LineaDraft {
     producto: p?.producto || "",
     unidadMedida: p?.unidadMedida || "",
     cantidad: "",
-    fechaProduccion: "",
+    fechaProduccion: todayISODate(),
     detalleProduccion: "",
     origenBodegaId: "",
     destinoBodegaId: "",
@@ -114,7 +117,10 @@ export default function ProduccionPage() {
       return;
     }
     setError(null);
-    setLineas((prev) => [...prev, { ...draft, key: crypto.randomUUID() }]);
+    setLineas((prev) => [
+      ...prev,
+      { ...draft, key: crypto.randomUUID(), fechaProduccion: todayISODate() },
+    ]);
     setProduct(null);
     setDraft(emptyLinea());
   }
@@ -214,7 +220,9 @@ export default function ProduccionPage() {
                   <tr key={l.key}>
                     <td>{l.producto}</td>
                     <td className="micro">{l.codigo}</td>
-                    <td>{l.unidadMedida}</td>
+                    <td>
+                      <UmMark value={l.unidadMedida} />
+                    </td>
                     {fieldOk("produccion", "cantidad") && (
                       <td>{l.cantidad || "—"}</td>
                     )}
@@ -271,17 +279,7 @@ export default function ProduccionPage() {
                   )}
                   {fieldOk("produccion", "fechaProduccion") && (
                     <td>
-                      <input
-                        className="input"
-                        type="date"
-                        value={draft.fechaProduccion}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            fechaProduccion: e.target.value,
-                          })
-                        }
-                      />
+                      <span className="date-lock">{todayISODate()}</span>
                     </td>
                   )}
                   {fieldOk("produccion", "detalleProduccion") && (
@@ -425,7 +423,7 @@ export default function ProduccionPage() {
                       <div className="micro muted">
                         {d.lineas
                           .slice(0, 2)
-                          .map((l) => l.producto)
+                          .map((l) => productWithUm(l.producto, l.unidadMedida))
                           .join(", ")}
                         {d.lineas.length > 2 ? "…" : ""}
                       </div>
@@ -457,7 +455,7 @@ export default function ProduccionPage() {
 
       {activo && (
         <div className="modal-scrim" role="dialog" aria-modal>
-          <div className="modal-card" style={{ width: "min(100%, 960px)" }}>
+          <div className="modal-card modal-card-wide">
             <h2 className="heading-lg" style={{ marginBottom: 8 }}>
               Producción — {activo.titulo || "Detalle"}
             </h2>
@@ -483,11 +481,13 @@ export default function ProduccionPage() {
                   {activo.lineas.map((l) => (
                     <tr key={l.id}>
                       <td>
-                        {l.codigo}
-                        <div className="micro">{l.producto}</div>
+                        <strong>{l.producto}</strong>
+                        <div className="micro">{l.codigo}</div>
                       </td>
                       <td>{l.cantidad ?? "—"}</td>
-                      <td>{l.unidadMedida}</td>
+                      <td>
+                        <UmMark value={l.unidadMedida} />
+                      </td>
                       <td>{l.fechaProduccion || "—"}</td>
                       <td>{l.detalleProduccion || "—"}</td>
                       <td>{bodegaNombre(l.origenBodegaId)}</td>
@@ -498,7 +498,7 @@ export default function ProduccionPage() {
                 </tbody>
               </table>
             </div>
-            <div className="row" style={{ marginTop: 16, justifyContent: "flex-end" }}>
+            <div className="modal-actions">
               <button
                 type="button"
                 className="btn btn-secondary"

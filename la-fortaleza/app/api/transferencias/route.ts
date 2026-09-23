@@ -7,6 +7,7 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { transferenciaDocs, transferenciaLineas } from "@/lib/db/schema";
 import { pickAllowedFields, requirePermission } from "@/lib/permissions";
 import { getActiveProductOrThrow, productSnapshot } from "@/lib/services/products";
+import { todayISODate } from "@/lib/dates";
 import { FIELD_KEYS, transferenciaDocCreateSchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
         orden,
         ...productSnapshot(product),
         cantidad: fields.cantidad ?? null,
-        fechaTransferencia: fields.fechaTransferencia ?? null,
+        fechaTransferencia: todayISODate(),
         origenBodegaId: fields.origenBodegaId ?? null,
         destinoBodegaId: fields.destinoBodegaId ?? null,
         observacion: fields.observacion ?? null,
