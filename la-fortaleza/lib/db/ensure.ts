@@ -1,6 +1,6 @@
 import { getLibsqlClient } from "./index";
 
-const ENSURE_VERSION = "docs-v5-mail-invites";
+const ENSURE_VERSION = "docs-v6-password-reset";
 
 const globalEnsure = globalThis as unknown as {
   __lfEnsureVersion?: string;
@@ -47,6 +47,16 @@ CREATE TABLE IF NOT EXISTS invitations (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS invitations_token_uidx ON invitations(token_hash);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS password_resets_token_uidx ON password_resets(token_hash);
 
 CREATE TABLE IF NOT EXISTS role_permissions (
   id TEXT PRIMARY KEY,

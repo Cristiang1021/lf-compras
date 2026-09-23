@@ -7,6 +7,8 @@ import { api } from "@/lib/client/api";
 import { useAuth, type Role } from "@/lib/client/auth";
 import { Alert, Panel } from "@/components/ui/Panel";
 import { roleLabel } from "@/lib/client/labels";
+import { PasswordHints } from "@/components/forms/PasswordHints";
+import { isStrongPassword } from "@/lib/password";
 
 type UserRow = {
   id: string;
@@ -49,6 +51,15 @@ export default function UsuariosPage() {
     role: "BODEGA" as Role,
   });
   const [showManual, setShowManual] = useState(false);
+  const [editing, setEditing] = useState<UserRow | null>(null);
+  const [editForm, setEditForm] = useState({
+    username: "",
+    fullName: "",
+    email: "",
+    role: "BODEGA" as Role,
+    password: "",
+    isActive: true,
+  });
 
   async function load() {
     const [users, pending] = await Promise.all([
@@ -107,6 +118,49 @@ export default function UsuariosPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
+    }
+  }
+
+  function openEdit(row: UserRow) {
+    setError(null);
+    setOk(null);
+    setEditing(row);
+    setEditForm({
+      username: row.username,
+      fullName: row.fullName,
+      email: row.email || "",
+      role: row.role,
+      password: "",
+      isActive: row.isActive,
+    });
+  }
+
+  async function onEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setError(null);
+    setOk(null);
+    setBusy(true);
+    try {
+      const payload: Record<string, unknown> = {
+        username: editForm.username.trim(),
+        fullName: editForm.fullName.trim(),
+        email: editForm.email.trim() || null,
+        role: editForm.role,
+        isActive: editForm.isActive,
+      };
+      if (editForm.password.trim()) payload.password = editForm.password;
+      await api(`/api/admin/usuarios/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setOk("Usuario actualizado.");
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -178,14 +232,25 @@ export default function UsuariosPage() {
                       )}
                     </td>
                     <td>
-                      {can("usuarios", "canUpdate") && r.id !== user.id && (
-                        <button
-                          type="button"
-                          className="btn btn-carbon"
-                          onClick={() => void toggleActive(r)}
-                        >
-                          {r.isActive ? "Desactivar" : "Activar"}
-                        </button>
+                      {can("usuarios", "canUpdate") && (
+                        <div className="row">
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => openEdit(r)}
+                          >
+                            Editar
+                          </button>
+                          {r.id !== user.id && (
+                            <button
+                              type="button"
+                              className="btn btn-carbon"
+                              onClick={() => void toggleActive(r)}
+                            >
+                              {r.isActive ? "Desactivar" : "Activar"}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -329,12 +394,13 @@ export default function UsuariosPage() {
                     className="input"
                     type="password"
                     required
-                    minLength={6}
+                    minLength={8}
                     value={form.password}
                     onChange={(e) =>
                       setForm({ ...form, password: e.target.value })
                     }
                   />
+                  <PasswordHints password={form.password} />
                 </div>
                 <div className="field">
                   <label className="field-label">Rol</label>
@@ -352,7 +418,11 @@ export default function UsuariosPage() {
                     ))}
                   </select>
                 </div>
-                <button type="submit" className="btn btn-secondary">
+                <button
+                  type="submit"
+                  className="btn btn-secondary"
+                  disabled={!isStrongPassword(form.password)}
+                >
                   Crear
                 </button>
               </form>
@@ -360,6 +430,121 @@ export default function UsuariosPage() {
           </Panel>
         )}
       </div>
+
+      {editing && (
+        <div className="modal-scrim" role="dialog" aria-modal>
+          <div className="modal-card" style={{ width: "min(100%, 460px)" }}>
+            <h2 className="heading-lg" style={{ marginBottom: 8 }}>
+              Editar usuario
+            </h2>
+            <p className="body-sm" style={{ marginTop: 0 }}>
+              Cambia datos, rol o asigna una contraseña nueva.
+            </p>
+            <form onSubmit={onEdit}>
+              <div className="field">
+                <label className="field-label">Usuario</label>
+                <input
+                  className="input"
+                  required
+                  minLength={3}
+                  value={editForm.username}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, username: e.target.value })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label className="field-label">Nombre</label>
+                <input
+                  className="input"
+                  required
+                  value={editForm.fullName}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, fullName: e.target.value })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label className="field-label">Correo</label>
+                <input
+                  className="input"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, email: e.target.value })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label className="field-label">Rol</label>
+                <select
+                  className="select"
+                  value={editForm.role}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, role: e.target.value as Role })
+                  }
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {roleLabel(r)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="field-label">Nueva contraseña (opcional)</label>
+                <input
+                  className="input"
+                  type="password"
+                  minLength={8}
+                  placeholder="Deja vacío para no cambiarla"
+                  value={editForm.password}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, password: e.target.value })
+                  }
+                />
+                <PasswordHints password={editForm.password} optional />
+              </div>
+              <div className="field">
+                <label className="field-label">Estado</label>
+                <select
+                  className="select"
+                  value={editForm.isActive ? "1" : "0"}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      isActive: e.target.value === "1",
+                    })
+                  }
+                >
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setEditing(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={
+                    busy ||
+                    (Boolean(editForm.password) &&
+                      !isStrongPassword(editForm.password))
+                  }
+                >
+                  {busy ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

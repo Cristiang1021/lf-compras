@@ -96,6 +96,23 @@ export const mailServers = sqliteTable("mail_servers", {
     .default(sql`(datetime('now'))`),
 });
 
+export const passwordResets = sqliteTable(
+  "password_resets",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    usedAt: text("used_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [uniqueIndex("password_resets_token_uidx").on(t.tokenHash)],
+);
+
 export const invitations = sqliteTable(
   "invitations",
   {
@@ -270,6 +287,7 @@ export const produccionLineas = sqliteTable("produccion_lineas", {
 export type User = typeof users.$inferSelect;
 export type MailServer = typeof mailServers.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
+export type PasswordReset = typeof passwordResets.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Bodega = typeof bodegas.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;

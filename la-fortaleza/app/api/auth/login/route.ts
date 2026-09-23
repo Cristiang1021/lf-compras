@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { signAccessToken } from "@/lib/auth/jwt";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/api/response";
 import { db } from "@/lib/db";
@@ -15,8 +15,10 @@ export async function POST(request: Request) {
   try {
     await ensureDatabase();
     const body = loginSchema.parse(await request.json());
+    const identifier = body.username.trim();
+    const asEmail = identifier.toLowerCase();
     const user = await db.query.users.findFirst({
-      where: eq(users.username, body.username),
+      where: or(eq(users.username, identifier), eq(users.email, asEmail)),
     });
 
     if (!user || !user.isActive) {

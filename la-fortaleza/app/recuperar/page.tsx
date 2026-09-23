@@ -1,32 +1,33 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/client/auth";
 import { Alert } from "@/components/ui/Panel";
 
-export default function LoginPage() {
-  const { login, user, loading } = useAuth();
-  const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+export default function RecuperarPage() {
+  const [identifier, setIdentifier] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!loading && user) router.replace("/");
-  }, [loading, user, router]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setOk(null);
     try {
-      await login(username.trim(), password);
-      router.replace("/");
+      const res = await fetch("/api/auth/recuperar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: identifier.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "No se pudo enviar el correo");
+      }
+      setOk(json.data.notice);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+      setError(err instanceof Error ? err.message : "Error");
     } finally {
       setBusy(false);
     }
@@ -46,32 +47,23 @@ export default function LoginPage() {
           La Fortaleza
         </p>
         <h1 className="heading-lg" style={{ marginBottom: 6 }}>
-          Iniciar sesión
+          Recuperar contraseña
         </h1>
         <p className="body-sm" style={{ marginTop: 0, marginBottom: 20 }}>
-          Ingresa con tu usuario o correo para continuar.
+          Escribe tu usuario o correo. Si está registrado y tiene email, te
+          enviamos un enlace.
         </p>
         {error && <Alert kind="error">{error}</Alert>}
+        {ok && <Alert kind="ok">{ok}</Alert>}
         <form onSubmit={onSubmit}>
           <div className="field">
             <label className="field-label">Usuario o correo</label>
             <input
               className="input"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
               required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label">Contraseña</label>
-            <input
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              minLength={3}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
             />
           </div>
           <button
@@ -80,11 +72,11 @@ export default function LoginPage() {
             style={{ width: "100%", marginTop: 8 }}
             disabled={busy}
           >
-            {busy ? "Entrando…" : "Entrar"}
+            {busy ? "Enviando…" : "Enviar enlace"}
           </button>
         </form>
         <p className="body-sm" style={{ marginTop: 16, marginBottom: 0 }}>
-          <Link href="/recuperar">¿Olvidaste tu contraseña?</Link>
+          <Link href="/login">Volver al inicio de sesión</Link>
         </p>
       </div>
     </div>

@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/Panel";
+import { PasswordHints } from "@/components/forms/PasswordHints";
+import { isStrongPassword } from "@/lib/password";
 
 type InviteInfo = {
   email: string;
@@ -130,10 +132,11 @@ export default function AceptarInvitacionPage() {
                 className="input"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
+              <PasswordHints password={form.password} />
             </div>
             <div className="field">
               <label className="field-label">Confirmar contraseña</label>
@@ -141,7 +144,7 @@ export default function AceptarInvitacionPage() {
                 className="input"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 value={form.confirm}
                 onChange={(e) => setForm({ ...form, confirm: e.target.value })}
               />
@@ -150,7 +153,11 @@ export default function AceptarInvitacionPage() {
               type="submit"
               className="btn btn-primary"
               style={{ width: "100%", marginTop: 8 }}
-              disabled={busy}
+              disabled={
+                busy ||
+                !isStrongPassword(form.password) ||
+                form.password !== form.confirm
+              }
             >
               {busy ? "Creando cuenta…" : "Crear cuenta"}
             </button>

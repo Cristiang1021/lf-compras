@@ -58,10 +58,27 @@ export async function PATCH(request: Request, ctx: Ctx) {
       return jsonError("No puedes quitarte el rol de super usuario a ti mismo", 400);
     }
 
+    if (body.username && body.username !== existing.username) {
+      const taken = await db.query.users.findFirst({
+        where: eq(users.username, body.username),
+      });
+      if (taken) return jsonError("El nombre de usuario ya existe", 409);
+    }
+    if (body.email && body.email !== existing.email) {
+      const taken = await db.query.users.findFirst({
+        where: eq(users.email, body.email.trim().toLowerCase()),
+      });
+      if (taken) return jsonError("Ya existe un usuario con ese correo", 409);
+    }
+
     const patch: Partial<typeof users.$inferInsert> = {
       updatedAt: new Date().toISOString(),
     };
+    if (body.username !== undefined) patch.username = body.username.trim();
     if (body.fullName !== undefined) patch.fullName = body.fullName;
+    if (body.email !== undefined) {
+      patch.email = body.email?.trim().toLowerCase() || null;
+    }
     if (body.role !== undefined) patch.role = body.role;
     if (body.isActive !== undefined) patch.isActive = body.isActive;
     if (body.password) {

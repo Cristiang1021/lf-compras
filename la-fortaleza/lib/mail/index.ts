@@ -156,3 +156,35 @@ export function inviteEmailContent(input: {
 
   return { subject, text, html };
 }
+
+export function resetPasswordEmailContent(input: {
+  fullName?: string | null;
+  resetUrl: string;
+}) {
+  const hello = input.fullName?.trim()
+    ? `Hola, ${input.fullName.trim()}`
+    : "Hola";
+  const subject = "Recuperar contraseña — La Fortaleza";
+  const text = [
+    `${hello}.`,
+    "",
+    "Recibimos un pedido para restablecer tu contraseña de La Fortaleza.",
+    "Abre este enlace para crear una nueva (vence en 2 horas):",
+    input.resetUrl,
+    "",
+    "Si no pediste este cambio, ignora el correo.",
+  ].join("\n");
+  const html = `
+    <div style="font-family:Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#17181c">
+      <p style="margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#a21112;font-weight:700">La Fortaleza</p>
+      <h1 style="margin:0 0 12px;font-size:22px">Recuperar contraseña</h1>
+      <p style="margin:0 0 12px;line-height:1.5">${hello}. Pediste restablecer tu contraseña.</p>
+      <p style="margin:0 0 20px;line-height:1.5">El enlace vence en 2 horas.</p>
+      <p style="margin:0 0 24px">
+        <a href="${input.resetUrl}" style="display:inline-block;background:#a21112;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">Elegir nueva contraseña</a>
+      </p>
+      <p style="margin:0;font-size:12px;color:#6b6e76;word-break:break-all">${input.resetUrl}</p>
+    </div>
+  `;
+  return { subject, text, html };
+}

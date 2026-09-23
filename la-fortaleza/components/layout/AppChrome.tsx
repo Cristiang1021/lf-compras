@@ -26,7 +26,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const publicPage =
-    pathname === "/login" || pathname.startsWith("/invitar/");
+    pathname === "/login" ||
+    pathname === "/recuperar" ||
+    pathname.startsWith("/invitar/") ||
+    pathname.startsWith("/recuperar/");
 
   if (publicPage) {
     return <>{children}</>;

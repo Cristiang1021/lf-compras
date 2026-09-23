@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isStrongPassword } from "@/lib/password";
 import {
   COMPRA_FIELDS,
   MAIL_ENCRYPTIONS,
@@ -9,14 +10,23 @@ import {
   TRANSFERENCIA_FIELDS,
 } from "@/lib/db/schema";
 
+export const strongPasswordSchema = z
+  .string()
+  .min(8)
+  .max(128)
+  .refine(isStrongPassword, {
+    message:
+      "La contraseña debe tener 8+ caracteres, mayúscula, minúscula, número y un símbolo",
+  });
+
 export const loginSchema = z.object({
-  username: z.string().min(3).max(64),
+  username: z.string().min(3).max(180),
   password: z.string().min(6).max(128),
 });
 
 export const createUserSchema = z.object({
   username: z.string().min(3).max(64),
-  password: z.string().min(6).max(128),
+  password: strongPasswordSchema,
   fullName: z.string().min(2).max(120),
   email: z.string().email().max(180).optional().nullable(),
   role: z.enum(ROLES),
@@ -31,7 +41,7 @@ export const inviteUserSchema = z.object({
 
 export const acceptInviteSchema = z.object({
   username: z.string().min(3).max(64),
-  password: z.string().min(6).max(128),
+  password: strongPasswordSchema,
   fullName: z.string().min(2).max(120),
 });
 
@@ -53,12 +63,22 @@ export const testMailSchema = z.object({
 
 export const updateUserSchema = z
   .object({
+    username: z.string().min(3).max(64).optional(),
     fullName: z.string().min(2).max(120).optional(),
-    password: z.string().min(6).max(128).optional(),
+    email: z.string().email().max(180).optional().nullable(),
+    password: strongPasswordSchema.optional(),
     role: z.enum(ROLES).optional(),
     isActive: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Sin cambios" });
+
+export const recoverPasswordSchema = z.object({
+  identifier: z.string().min(3).max(180),
+});
+
+export const resetPasswordSchema = z.object({
+  password: strongPasswordSchema,
+});
 
 export const permissionItemSchema = z.object({
   role: z.enum(ROLES),

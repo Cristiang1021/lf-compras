@@ -3,7 +3,7 @@ import type { Client } from "@libsql/client";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 
 /** Bump when schema tables change so hot-reload recreates drizzle query API. */
-const SCHEMA_VERSION = "docs-v5-mail-invites";
+const SCHEMA_VERSION = "docs-v6-password-reset";
 
 export type AppDb = LibSQLDatabase<typeof schema>;
 
