@@ -1,8 +1,10 @@
 /**
  * Importa productos desde el Excel "Control LA FORTALEZA.xlsx" (hoja Maestro Productos).
  *
- * Uso:
- *   npm run db:import-productos -- "C:\ruta\Control LA FORTALEZA.xlsx"
+ * Uso (BD local: USE_TURSO=false en .env):
+ *   npm run db:import-productos -- "Control LA FORTALEZA.xlsx"
+ *   npm run db:import-productos-faltantes-extraccion
+ *   npm run db:count-productos
  */
 import "dotenv/config";
 import { randomUUID } from "node:crypto";

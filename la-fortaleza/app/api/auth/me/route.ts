@@ -2,7 +2,7 @@ import { authenticateRequest } from "@/lib/auth/request";
 import { handleRouteError, jsonOk } from "@/lib/api/response";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { MODULES } from "@/lib/db/schema";
-import { getRolePermission } from "@/lib/permissions";
+import { getRolePermission, canSeePrecios, canEditOpenCompra } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   try {
@@ -24,6 +24,8 @@ export async function GET(request: Request) {
         isActive: user.isActive,
       },
       permissions,
+      canSeePrices: await canSeePrecios(user),
+      canEditOpenCompra: await canEditOpenCompra(user),
     });
   } catch (error) {
     return handleRouteError(error);

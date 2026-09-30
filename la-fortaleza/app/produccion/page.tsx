@@ -10,6 +10,7 @@ import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
 import { todayISODate } from "@/lib/dates";
 import { productWithUm } from "@/lib/client/labels";
+import { formatMonto, monto } from "@/lib/money";
 
 type Bodega = { id: string; nombre: string };
 type LineaDraft = {
@@ -24,6 +25,7 @@ type LineaDraft = {
   origenBodegaId: string;
   destinoBodegaId: string;
   observaciones: string;
+  precio: number | null;
 };
 type Linea = {
   id: string;
@@ -31,6 +33,8 @@ type Linea = {
   producto: string;
   unidadMedida: string;
   cantidad: number | null;
+  precioUnitario?: number | null;
+  valor?: number | null;
   fechaProduccion: string | null;
   detalleProduccion: string | null;
   origenBodegaId: string | null;
@@ -44,6 +48,7 @@ type Doc = {
   locked: boolean;
   createdAt: string;
   totalLineas: number;
+  totalValor?: number | null;
   lineas: Linea[];
 };
 
@@ -60,11 +65,13 @@ function emptyLinea(p?: Product | null): LineaDraft {
     origenBodegaId: "",
     destinoBodegaId: "",
     observaciones: "",
+    precio: null,
   };
 }
 
 export default function ProduccionPage() {
-  const { user, loading, can, fieldOk } = useAuth();
+  const { user, loading, can, fieldOk, canSeePrices } = useAuth();
+  const seePrecios = canSeePrices;
   const router = useRouter();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
@@ -108,6 +115,7 @@ export default function ProduccionPage() {
       codigo: product.codigo,
       producto: product.producto,
       unidadMedida: product.unidadMedida,
+      precio: product.precio ?? null,
     }));
   }, [product]);
 
@@ -205,6 +213,8 @@ export default function ProduccionPage() {
                   <th>Código</th>
                   <th>U.M.</th>
                   {fieldOk("produccion", "cantidad") && <th>Cantidad</th>}
+                  {seePrecios && <th>Precio / UM</th>}
+                  {seePrecios && <th>Monto</th>}
                   {fieldOk("produccion", "fechaProduccion") && <th>Fecha</th>}
                   {fieldOk("produccion", "detalleProduccion") && (
                     <th>Detalle</th>
@@ -225,6 +235,17 @@ export default function ProduccionPage() {
                     </td>
                     {fieldOk("produccion", "cantidad") && (
                       <td>{l.cantidad || "—"}</td>
+                    )}
+                    {seePrecios && <td>{formatMonto(l.precio)}</td>}
+                    {seePrecios && (
+                      <td>
+                        {formatMonto(
+                          monto(
+                            l.cantidad === "" ? null : Number(l.cantidad),
+                            l.precio,
+                          ),
+                        )}
+                      </td>
                     )}
                     {fieldOk("produccion", "fechaProduccion") && (
                       <td>{l.fechaProduccion || "—"}</td>
@@ -275,6 +296,17 @@ export default function ProduccionPage() {
                           setDraft({ ...draft, cantidad: e.target.value })
                         }
                       />
+                    </td>
+                  )}
+                  {seePrecios && <td>{formatMonto(draft.precio)}</td>}
+                  {seePrecios && (
+                    <td>
+                      {formatMonto(
+                        monto(
+                          draft.cantidad === "" ? null : Number(draft.cantidad),
+                          draft.precio,
+                        ),
+                      )}
                     </td>
                   )}
                   {fieldOk("produccion", "fechaProduccion") && (
@@ -400,6 +432,7 @@ export default function ProduccionPage() {
                 <th>Registro</th>
                 <th>Fecha</th>
                 <th>Productos</th>
+                {seePrecios && <th>Monto</th>}
                 <th>Movimiento</th>
                 <th>Estado</th>
                 <th></th>
@@ -428,6 +461,7 @@ export default function ProduccionPage() {
                         {d.lineas.length > 2 ? "…" : ""}
                       </div>
                     </td>
+                    {seePrecios && <td>{formatMonto(d.totalValor)}</td>}
                     <td className="micro">{movimiento}</td>
                     <td>
                       {d.locked ? (
@@ -469,6 +503,8 @@ export default function ProduccionPage() {
                   <tr>
                     <th>Producto</th>
                     <th>Cantidad</th>
+                    {seePrecios && <th>Precio / UM</th>}
+                    {seePrecios && <th>Monto</th>}
                     <th>U.M.</th>
                     <th>Fecha</th>
                     <th>Detalle</th>
@@ -485,6 +521,8 @@ export default function ProduccionPage() {
                         <div className="micro">{l.codigo}</div>
                       </td>
                       <td>{l.cantidad ?? "—"}</td>
+                      {seePrecios && <td>{formatMonto(l.precioUnitario)}</td>}
+                      {seePrecios && <td>{formatMonto(l.valor)}</td>}
                       <td>
                         <UmMark value={l.unidadMedida} />
                       </td>

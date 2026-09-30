@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   rolePermissions,
+  rolePriceAccess,
   type FieldAccessMap,
   type ModuleKey,
   type Role,
@@ -99,4 +100,29 @@ export function assertCanEditLocked(user: User, locked: boolean) {
       403,
     );
   }
+}
+
+/** Ver precios y montos. Apagado salvo que el rol lo tenga activo en permisos. */
+export async function canSeePrecios(user: Pick<User, "role">) {
+  const row = await db.query.rolePriceAccess.findFirst({
+    where: eq(rolePriceAccess.role, user.role),
+  });
+  return row?.canSeePrices === true;
+}
+
+/** Añadir o quitar productos en una compra abierta. Apagado por defecto. */
+export async function canEditOpenCompra(user: Pick<User, "role">) {
+  const row = await db.query.rolePriceAccess.findFirst({
+    where: eq(rolePriceAccess.role, user.role),
+  });
+  return row?.canEditOpenCompra === true;
+}
+
+export async function redactProductPrecios<T extends { precio?: number | null }>(
+  user: Pick<User, "role">,
+  row: T,
+): Promise<T | Omit<T, "precio">> {
+  if (await canSeePrecios(user)) return row;
+  const { precio: _p, ...rest } = row;
+  return rest;
 }

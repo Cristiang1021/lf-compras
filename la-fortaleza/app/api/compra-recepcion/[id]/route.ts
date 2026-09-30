@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import { authenticateRequest } from "@/lib/auth/request";
 import { handleRouteError, jsonError, jsonOk } from "@/lib/api/response";
@@ -6,9 +7,12 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { compraDocs, compraLineas } from "@/lib/db/schema";
 import {
   assertCanEditLocked,
+  canEditOpenCompra,
   pickAllowedFields,
   requirePermission,
 } from "@/lib/permissions";
+import { presentCompraLineas } from "@/lib/services/money-docs";
+import { getActiveProductOrThrow, productSnapshot } from "@/lib/services/products";
 import { todayISODate } from "@/lib/dates";
 import { compraRecepcionUpdateSchema } from "@/lib/validators";
 
@@ -39,7 +43,11 @@ export async function GET(request: Request, ctx: Ctx) {
       .from(compraLineas)
       .where(eq(compraLineas.docId, id))
       .orderBy(asc(compraLineas.orden));
-    return jsonOk({ ...doc, totalLineas: lineas.length, lineas });
+    return jsonOk({
+      ...doc,
+      totalLineas: lineas.length,
+      ...await presentCompraLineas(user, lineas),
+    });
   } catch (error) {
     return handleRouteError(error);
   }
@@ -52,9 +60,6 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const { user } = await authenticateRequest(request);
     const { getRolePermission } = await import("@/lib/permissions");
     const perm = await getRolePermission(user.role, "compra_recepcion");
-    if (!perm.canUpdate && !perm.canCreate && user.role !== "SUPER_USUARIO") {
-      return jsonError("Sin permiso para completar la recepción", 403);
-    }
     const { id } = await ctx.params;
     const [doc] = await db
       .select()
@@ -63,16 +68,78 @@ export async function PATCH(request: Request, ctx: Ctx) {
       .limit(1);
     if (!doc) return jsonError("Registro no encontrado", 404);
 
-    if (doc.estado === "CERRADO" || doc.locked) {
-      if (user.role !== "SUPER_USUARIO") {
+    const body = compraRecepcionUpdateSchema.parse(await request.json());
+    const cerrado = doc.estado === "CERRADO" || doc.locked;
+
+    if (body.pedido) {
+      if (cerrado) {
+        return jsonError(
+          "La compra está cerrada. Ya no se pueden añadir ni quitar productos.",
+          403,
+        );
+      }
+      if (!(await canEditOpenCompra(user))) {
+        return jsonError("Sin permiso para editar los productos de la compra", 403);
+      }
+
+      const actuales = await db
+        .select()
+        .from(compraLineas)
+        .where(eq(compraLineas.docId, id));
+      const quitar = new Set(body.pedido.quitar);
+      const quedan = actuales.filter((l) => !quitar.has(l.id));
+      if (quedan.length + body.pedido.agregar.length < 1) {
+        return jsonError("La compra debe conservar al menos un producto", 400);
+      }
+      for (const lineaId of quitar) {
+        const linea = actuales.find((l) => l.id === lineaId);
+        if (!linea) return jsonError(`Línea no válida: ${lineaId}`, 400);
+        await db.delete(compraLineas).where(eq(compraLineas.id, lineaId));
+      }
+      for (const cambio of body.pedido.cantidades) {
+        if (quitar.has(cambio.id)) continue;
+        const linea = actuales.find((l) => l.id === cambio.id);
+        if (!linea) return jsonError(`Línea no válida: ${cambio.id}`, 400);
+        await db
+          .update(compraLineas)
+          .set({ cantidad: cambio.cantidad })
+          .where(eq(compraLineas.id, cambio.id));
+      }
+      let orden =
+        actuales.reduce((max, l) => Math.max(max, l.orden), 0) + 1;
+      for (const nueva of body.pedido.agregar) {
+        const product = await getActiveProductOrThrow(nueva.productId);
+        await db.insert(compraLineas).values({
+          id: randomUUID(),
+          docId: id,
+          orden,
+          ...productSnapshot(product),
+          cantidad: nueva.cantidad ?? null,
+          fechaPedido: todayISODate(),
+          cantidadRecibida: null,
+          proveedor: null,
+          fechaRecepcion: null,
+          facturaNotaVenta: null,
+          observaciones: null,
+        });
+        orden += 1;
+      }
+      await db
+        .update(compraDocs)
+        .set({ updatedBy: user.id, updatedAt: new Date().toISOString() })
+        .where(eq(compraDocs.id, id));
+    }
+
+    if (body.lineas && body.lineas.length > 0) {
+      if (!perm.canUpdate && !perm.canCreate && user.role !== "SUPER_USUARIO") {
+        return jsonError("Sin permiso para completar la recepción", 403);
+      }
+      if (cerrado && user.role !== "SUPER_USUARIO") {
         return jsonError(
           "Esta compra ya está cerrada. Solo el super usuario puede modificarla.",
           403,
         );
       }
-    }
-
-    const body = compraRecepcionUpdateSchema.parse(await request.json());
 
     for (const linea of body.lineas) {
       const [existing] = await db
@@ -105,6 +172,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
         })
         .where(eq(compraLineas.id, linea.id));
     }
+    }
 
     const nextEstado = body.cerrar ? "CERRADO" : doc.estado || "PEDIDO";
     await db
@@ -131,7 +199,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     return jsonOk({
       ...updated,
       totalLineas: lineas.length,
-      lineas,
+      ...await presentCompraLineas(user, lineas),
       notice: body.cerrar
         ? "Recepción guardada y compra cerrada."
         : "Datos de recepción actualizados.",

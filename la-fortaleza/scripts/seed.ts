@@ -25,8 +25,11 @@ function allFieldsTrue(keys: readonly string[]): FieldAccessMap {
 
 function defaultFieldAccess(module: ModuleKey): FieldAccessMap {
   switch (module) {
-    case "productos":
-      return allFieldsTrue(PRODUCTO_FIELDS);
+    case "productos": {
+      const fields = allFieldsTrue(PRODUCTO_FIELDS);
+      fields.precio = false;
+      return fields;
+    }
     case "compra_recepcion":
       return allFieldsTrue(COMPRA_FIELDS);
     case "transferencias":

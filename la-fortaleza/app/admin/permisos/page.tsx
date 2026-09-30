@@ -33,6 +33,8 @@ type Payload = {
   roles: Role[];
   modules: string[];
   permissions: PermRow[];
+  priceVisibility: Record<string, boolean>;
+  compraEdit: Record<string, boolean>;
   fieldKeysHint: Record<string, string[]>;
 };
 
@@ -53,6 +55,8 @@ export default function PermisosPage() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [draft, setDraft] = useState<PermRow | null>(null);
+  const [verPrecios, setVerPrecios] = useState(false);
+  const [editarCompraAbierta, setEditarCompraAbierta] = useState(false);
 
   async function load() {
     const payload = await api<Payload>("/api/admin/permisos");
@@ -89,31 +93,36 @@ export default function PermisosPage() {
             fieldAccess: {},
           },
     );
+    setVerPrecios(data.priceVisibility?.[role] === true);
+    setEditarCompraAbierta(data.compraEdit?.[role] === true);
   }, [data, role, module]);
 
   async function save() {
-    if (!draft || role === "SUPER_USUARIO") {
-      setError("El super usuario siempre tiene acceso total (no editable).");
-      return;
-    }
+    if (!draft) return;
     setError(null);
     setOk(null);
     try {
+      const permissions =
+        role === "SUPER_USUARIO"
+          ? []
+          : [
+              {
+                role: draft.role,
+                module: draft.module,
+                canRead: draft.canRead,
+                canCreate: draft.canCreate,
+                canUpdate: draft.canUpdate,
+                canDelete: draft.canDelete,
+                canExport: draft.canExport,
+                fieldAccess: draft.fieldAccess,
+              },
+            ];
       await api("/api/admin/permisos", {
         method: "PUT",
         body: JSON.stringify({
-          permissions: [
-            {
-              role: draft.role,
-              module: draft.module,
-              canRead: draft.canRead,
-              canCreate: draft.canCreate,
-              canUpdate: draft.canUpdate,
-              canDelete: draft.canDelete,
-              canExport: draft.canExport,
-              fieldAccess: draft.fieldAccess,
-            },
-          ],
+          permissions,
+          priceVisibility: { role, canSeePrices: verPrecios },
+          compraEdit: { role, canEditOpenCompra: editarCompraAbierta },
         }),
       });
       setOk("Permisos actualizados.");
@@ -176,6 +185,38 @@ export default function PermisosPage() {
 
         {draft && (
           <>
+            <label className="news-row" style={{ marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                checked={verPrecios}
+                disabled={!can("permisos", "canUpdate")}
+                onChange={(e) => setVerPrecios(e.target.checked)}
+              />
+              <span style={{ flex: 1 }}>
+                Ver precios y montos
+                <div className="micro muted">
+                  Apagado para todos por defecto. Si lo activas, este rol ve
+                  precios en productos, compras, transferencias, producción y
+                  Excel.
+                </div>
+              </span>
+            </label>
+            <label className="news-row" style={{ marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                checked={editarCompraAbierta}
+                disabled={!can("permisos", "canUpdate")}
+                onChange={(e) => setEditarCompraAbierta(e.target.checked)}
+              />
+              <span style={{ flex: 1 }}>
+                Editar compras abiertas
+                <div className="micro muted">
+                  Apagado para todos por defecto. Permite añadir productos,
+                  quitarlos y cambiar la cantidad pedida solo mientras la compra
+                  no esté cerrada. Cerrada, no lo puede hacer nadie.
+                </div>
+              </span>
+            </label>
             <div className="row" style={{ marginBottom: 12 }}>
               {FLAGS.map((flag) => {
                 const labels: Record<(typeof FLAGS)[number], string> = {
@@ -239,7 +280,7 @@ export default function PermisosPage() {
               </>
             )}
 
-            {can("permisos", "canUpdate") && role !== "SUPER_USUARIO" && (
+            {can("permisos", "canUpdate") && (
               <button type="button" className="btn btn-signal" onClick={() => void save()}>
                 Guardar permisos
               </button>

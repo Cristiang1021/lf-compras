@@ -5,7 +5,8 @@ import { excelResponse, exportProduccionExcel } from "@/lib/export/excel";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { bodegas, produccionDocs, produccionLineas } from "@/lib/db/schema";
-import { requirePermission } from "@/lib/permissions";
+import { canSeePrecios, requirePermission } from "@/lib/permissions";
+import { monto } from "@/lib/money";
 
 export async function GET(request: Request) {
   try {
@@ -46,12 +47,16 @@ export async function GET(request: Request) {
             ? byId.get(l.destinoBodegaId) || null
             : null,
           observaciones: l.observaciones,
+          precioUnitario: l.precioUnitario,
+          valor: monto(l.cantidad, l.precioUnitario),
         });
       }
       n += 1;
     }
 
-    const buffer = await exportProduccionExcel(flat);
+    const buffer = await exportProduccionExcel(flat, {
+      includeMoney: await canSeePrecios(user),
+    });
     return excelResponse(buffer, "produccion.xlsx");
   } catch (error) {
     return handleRouteError(error);

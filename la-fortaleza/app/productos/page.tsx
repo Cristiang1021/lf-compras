@@ -7,12 +7,14 @@ import { useAuth } from "@/lib/client/auth";
 import { Alert, Panel } from "@/components/ui/Panel";
 import { UmMark } from "@/components/ui/UmMark";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
+import { formatMonto } from "@/lib/money";
 
 type Product = {
   id: string;
   codigo: string;
   producto: string;
   unidadMedida: string;
+  precio?: number | null;
   isActive: boolean;
 };
 
@@ -25,8 +27,9 @@ type PageResult = {
 };
 
 export default function ProductosPage() {
-  const { user, loading, can } = useAuth();
+  const { user, loading, can, canSeePrices } = useAuth();
   const router = useRouter();
+  const seePrecios = canSeePrices;
   const [rows, setRows] = useState<Product[]>([]);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -38,6 +41,7 @@ export default function ProductosPage() {
     codigo: "",
     producto: "",
     unidadMedida: "",
+    precio: "",
   });
 
   async function load(nextPage = page, query = q) {
@@ -64,12 +68,21 @@ export default function ProductosPage() {
   }, [user, q]);
 
   const save = useConfirmSubmit(async () => {
+    const payload: Record<string, unknown> = {
+      codigo: form.codigo,
+      producto: form.producto,
+      unidadMedida: form.unidadMedida,
+      confirm: true,
+    };
+    if (seePrecios && form.precio.trim() !== "") {
+      payload.precio = Number(form.precio.replace(",", "."));
+    }
     await api("/api/productos", {
       method: "POST",
-      body: JSON.stringify({ ...form, confirm: true }),
+      body: JSON.stringify(payload),
     });
     setOk("Producto guardado.");
-    setForm({ codigo: "", producto: "", unidadMedida: "" });
+    setForm({ codigo: "", producto: "", unidadMedida: "", precio: "" });
     await load(1, q);
   });
 
@@ -122,6 +135,7 @@ export default function ProductosPage() {
                   <th>Código</th>
                   <th>Producto</th>
                   <th>U.M.</th>
+                  {seePrecios && <th>Precio / UM</th>}
                 </tr>
               </thead>
               <tbody>
@@ -132,6 +146,11 @@ export default function ProductosPage() {
                     <td>
                       <UmMark value={r.unidadMedida} />
                     </td>
+                    {seePrecios && (
+                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                        {formatMonto(r.precio)}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -140,6 +159,7 @@ export default function ProductosPage() {
           <div className="row" style={{ marginTop: 12, justifyContent: "space-between" }}>
             <span className="micro">
               {total} productos · página {page} de {totalPages}
+              {seePrecios ? " · precios según permiso del rol" : ""}
             </span>
             <div className="row">
               <button
@@ -199,6 +219,18 @@ export default function ProductosPage() {
                   }
                 />
               </div>
+              {seePrecios && (
+                <div className="field">
+                  <label className="field-label">Precio unitario (opcional)</label>
+                  <input
+                    className="input"
+                    inputMode="decimal"
+                    placeholder="Por 1 unidad de medida"
+                    value={form.precio}
+                    onChange={(e) => setForm({ ...form, precio: e.target.value })}
+                  />
+                </div>
+              )}
               <Alert kind="warn">
                 Al confirmar, el alta queda registrada. Ediciones posteriores
                 solo con permiso (super usuario).

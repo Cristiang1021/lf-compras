@@ -47,7 +47,12 @@ export const PRODUCCION_FIELDS = [
   "observaciones",
 ] as const;
 
-export const PRODUCTO_FIELDS = ["codigo", "producto", "unidadMedida"] as const;
+export const PRODUCTO_FIELDS = [
+  "codigo",
+  "producto",
+  "unidadMedida",
+  "precio",
+] as const;
 
 export type FieldAccessMap = Record<string, boolean>;
 
@@ -154,6 +159,19 @@ export const rolePermissions = sqliteTable(
   (t) => [uniqueIndex("role_module_uidx").on(t.role, t.module)],
 );
 
+/** Ver precios y montos. Por defecto apagado para todos los roles. */
+export const rolePriceAccess = sqliteTable("role_price_access", {
+  role: text("role").$type<Role>().primaryKey(),
+  canSeePrices: integer("can_see_prices", { mode: "boolean" }).notNull().default(false),
+  /** Añadir, quitar o cambiar productos de una compra que aún no está cerrada. */
+  canEditOpenCompra: integer("can_edit_open_compra", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const products = sqliteTable(
   "products",
   {
@@ -161,6 +179,8 @@ export const products = sqliteTable(
     codigo: text("codigo").notNull(),
     producto: text("producto").notNull(),
     unidadMedida: text("unidad_medida").notNull(),
+    /** Precio unitario por 1 unidad de medida. Null = aún sin costo cargado. */
+    precio: real("precio"),
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     createdBy: text("created_by").references(() => users.id),
     createdAt: text("created_at")
@@ -222,6 +242,8 @@ export const compraLineas = sqliteTable("compra_lineas", {
   codigo: text("codigo").notNull(),
   producto: text("producto").notNull(),
   unidadMedida: text("unidad_medida").notNull(),
+  /** Precio por 1 UM al guardar la línea. Null si el producto aún no tenía precio. */
+  precioUnitario: real("precio_unitario"),
   cantidad: real("cantidad"),
   fechaPedido: text("fecha_pedido"),
   cantidadRecibida: real("cantidad_recibida"),
@@ -250,6 +272,7 @@ export const transferenciaLineas = sqliteTable("transferencia_lineas", {
   codigo: text("codigo").notNull(),
   producto: text("producto").notNull(),
   unidadMedida: text("unidad_medida").notNull(),
+  precioUnitario: real("precio_unitario"),
   cantidad: real("cantidad"),
   fechaTransferencia: text("fecha_transferencia"),
   origenBodegaId: text("origen_bodega_id").references(() => bodegas.id),
@@ -276,6 +299,7 @@ export const produccionLineas = sqliteTable("produccion_lineas", {
   codigo: text("codigo").notNull(),
   producto: text("producto").notNull(),
   unidadMedida: text("unidad_medida").notNull(),
+  precioUnitario: real("precio_unitario"),
   cantidad: real("cantidad"),
   fechaProduccion: text("fecha_produccion"),
   detalleProduccion: text("detalle_produccion"),

@@ -10,6 +10,7 @@ import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
 import { todayISODate } from "@/lib/dates";
 import { productWithUm } from "@/lib/client/labels";
+import { formatMonto, monto } from "@/lib/money";
 
 type Bodega = { id: string; nombre: string };
 type LineaDraft = {
@@ -23,6 +24,7 @@ type LineaDraft = {
   origenBodegaId: string;
   destinoBodegaId: string;
   observacion: string;
+  precio: number | null;
 };
 type Linea = {
   id: string;
@@ -30,6 +32,8 @@ type Linea = {
   producto: string;
   unidadMedida: string;
   cantidad: number | null;
+  precioUnitario?: number | null;
+  valor?: number | null;
   fechaTransferencia: string | null;
   origenBodegaId: string | null;
   destinoBodegaId: string | null;
@@ -42,6 +46,7 @@ type Doc = {
   locked: boolean;
   createdAt: string;
   totalLineas: number;
+  totalValor?: number | null;
   lineas: Linea[];
 };
 
@@ -57,11 +62,13 @@ function emptyLinea(p?: Product | null): LineaDraft {
     origenBodegaId: "",
     destinoBodegaId: "",
     observacion: "",
+    precio: null,
   };
 }
 
 export default function TransferenciasPage() {
-  const { user, loading, can, fieldOk } = useAuth();
+  const { user, loading, can, fieldOk, canSeePrices } = useAuth();
+  const seePrecios = canSeePrices;
   const router = useRouter();
   const [docs, setDocs] = useState<Doc[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
@@ -105,6 +112,7 @@ export default function TransferenciasPage() {
       codigo: product.codigo,
       producto: product.producto,
       unidadMedida: product.unidadMedida,
+      precio: product.precio ?? null,
     }));
   }, [product]);
 
@@ -201,6 +209,8 @@ export default function TransferenciasPage() {
                   <th>Código</th>
                   <th>U.M.</th>
                   {fieldOk("transferencias", "cantidad") && <th>Cantidad</th>}
+                  {seePrecios && <th>Precio / UM</th>}
+                  {seePrecios && <th>Monto</th>}
                   {fieldOk("transferencias", "fechaTransferencia") && (
                     <th>Fecha</th>
                   )}
@@ -224,6 +234,17 @@ export default function TransferenciasPage() {
                     </td>
                     {fieldOk("transferencias", "cantidad") && (
                       <td>{l.cantidad || "—"}</td>
+                    )}
+                    {seePrecios && <td>{formatMonto(l.precio)}</td>}
+                    {seePrecios && (
+                      <td>
+                        {formatMonto(
+                          monto(
+                            l.cantidad === "" ? null : Number(l.cantidad),
+                            l.precio,
+                          ),
+                        )}
+                      </td>
                     )}
                     {fieldOk("transferencias", "fechaTransferencia") && (
                       <td>{l.fechaTransferencia || "—"}</td>
@@ -271,6 +292,17 @@ export default function TransferenciasPage() {
                           setDraft({ ...draft, cantidad: e.target.value })
                         }
                       />
+                    </td>
+                  )}
+                  {seePrecios && <td>{formatMonto(draft.precio)}</td>}
+                  {seePrecios && (
+                    <td>
+                      {formatMonto(
+                        monto(
+                          draft.cantidad === "" ? null : Number(draft.cantidad),
+                          draft.precio,
+                        ),
+                      )}
                     </td>
                   )}
                   {fieldOk("transferencias", "fechaTransferencia") && (
@@ -383,6 +415,7 @@ export default function TransferenciasPage() {
                 <th>Registro</th>
                 <th>Fecha</th>
                 <th>Productos</th>
+                {seePrecios && <th>Monto</th>}
                 <th>Movimiento</th>
                 <th>Estado</th>
                 <th></th>
@@ -411,6 +444,7 @@ export default function TransferenciasPage() {
                         {d.lineas.length > 2 ? "…" : ""}
                       </div>
                     </td>
+                    {seePrecios && <td>{formatMonto(d.totalValor)}</td>}
                     <td className="micro">{movimiento}</td>
                     <td>
                       {d.locked ? (
@@ -452,6 +486,8 @@ export default function TransferenciasPage() {
                   <tr>
                     <th>Producto</th>
                     <th>Cantidad</th>
+                    {seePrecios && <th>Precio / UM</th>}
+                    {seePrecios && <th>Monto</th>}
                     <th>U.M.</th>
                     <th>Fecha</th>
                     <th>Origen</th>
@@ -467,6 +503,8 @@ export default function TransferenciasPage() {
                         <div className="micro">{l.codigo}</div>
                       </td>
                       <td>{l.cantidad ?? "—"}</td>
+                      {seePrecios && <td>{formatMonto(l.precioUnitario)}</td>}
+                      {seePrecios && <td>{formatMonto(l.valor)}</td>}
                       <td>
                         <UmMark value={l.unidadMedida} />
                       </td>

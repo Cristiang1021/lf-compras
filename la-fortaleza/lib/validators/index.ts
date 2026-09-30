@@ -91,9 +91,25 @@ export const permissionItemSchema = z.object({
   fieldAccess: z.record(z.string(), z.boolean()).default({}),
 });
 
-export const upsertPermissionsSchema = z.object({
-  permissions: z.array(permissionItemSchema).min(1),
-});
+export const upsertPermissionsSchema = z
+  .object({
+    permissions: z.array(permissionItemSchema).default([]),
+    priceVisibility: z
+      .object({
+        role: z.enum(ROLES),
+        canSeePrices: z.boolean(),
+      })
+      .optional(),
+    compraEdit: z
+      .object({
+        role: z.enum(ROLES),
+        canEditOpenCompra: z.boolean(),
+      })
+      .optional(),
+  })
+  .refine((v) => v.permissions.length > 0 || v.priceVisibility || v.compraEdit, {
+    message: "Sin cambios",
+  });
 
 const confirmTrue = z.boolean().refine((v) => v === true, {
   message:
@@ -104,6 +120,7 @@ export const productCreateSchema = z.object({
   codigo: z.string().min(1).max(64),
   producto: z.string().min(1).max(200),
   unidadMedida: z.string().min(1).max(64),
+  precio: z.number().nonnegative().nullable().optional(),
   confirm: confirmTrue,
 });
 
@@ -112,6 +129,7 @@ export const productUpdateSchema = z
     codigo: z.string().min(1).max(64).optional(),
     producto: z.string().min(1).max(200).optional(),
     unidadMedida: z.string().min(1).max(64).optional(),
+    precio: z.number().nonnegative().nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Sin cambios" });
@@ -138,21 +156,46 @@ export const compraDocCreateSchema = z.object({
   confirm: confirmTrue,
 });
 
-export const compraRecepcionUpdateSchema = z.object({
-  lineas: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        cantidadRecibida: z.number().nonnegative().nullable().optional(),
-        fechaRecepcion: z.string().nullable().optional(),
-        facturaNotaVenta: z.string().max(120).nullable().optional(),
-        observaciones: z.string().max(1000).nullable().optional(),
-        proveedor: z.string().max(200).nullable().optional(),
-      }),
-    )
-    .min(1),
-  cerrar: z.boolean().optional().default(false),
-});
+export const compraRecepcionUpdateSchema = z
+  .object({
+    lineas: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          cantidadRecibida: z.number().nonnegative().nullable().optional(),
+          fechaRecepcion: z.string().nullable().optional(),
+          facturaNotaVenta: z.string().max(120).nullable().optional(),
+          observaciones: z.string().max(1000).nullable().optional(),
+          proveedor: z.string().max(200).nullable().optional(),
+        }),
+      )
+      .optional(),
+    cerrar: z.boolean().optional().default(false),
+    pedido: z
+      .object({
+        agregar: z
+          .array(
+            z.object({
+              productId: z.string().min(1),
+              cantidad: z.number().nonnegative().nullable().optional(),
+            }),
+          )
+          .default([]),
+        quitar: z.array(z.string().min(1)).default([]),
+        cantidades: z
+          .array(
+            z.object({
+              id: z.string().min(1),
+              cantidad: z.number().nonnegative().nullable(),
+            }),
+          )
+          .default([]),
+      })
+      .optional(),
+  })
+  .refine((v) => (v.lineas && v.lineas.length > 0) || v.pedido, {
+    message: "Sin cambios",
+  });
 
 const transferenciaLineaSchema = z.object({
   productId: z.string().min(1),

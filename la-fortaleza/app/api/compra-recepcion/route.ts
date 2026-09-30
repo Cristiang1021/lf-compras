@@ -7,6 +7,7 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { compraDocs, compraLineas } from "@/lib/db/schema";
 import { pickAllowedFields, requirePermission } from "@/lib/permissions";
 import { getActiveProductOrThrow, productSnapshot } from "@/lib/services/products";
+import { presentCompraLineas } from "@/lib/services/money-docs";
 import { todayISODate } from "@/lib/dates";
 import { compraDocCreateSchema, FIELD_KEYS } from "@/lib/validators";
 
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
       result.push({
         ...doc,
         totalLineas: lineas.length,
-        lineas,
+        ...await presentCompraLineas(user, lineas),
       });
     }
 
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
       {
         ...created,
         totalLineas: lineas.length,
-        lineas,
+        ...await presentCompraLineas(user, lineas),
         lockedNotice:
           "Compra guardada. Queda abierta para que otro usuario complete la recepción.",
       },

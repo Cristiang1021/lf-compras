@@ -9,6 +9,7 @@ export type Product = {
   codigo: string;
   producto: string;
   unidadMedida: string;
+  precio?: number | null;
   isActive: boolean;
 };
 

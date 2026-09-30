@@ -5,7 +5,7 @@ import { handleRouteError, jsonError, jsonOk } from "@/lib/api/response";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { MODULES, users } from "@/lib/db/schema";
-import { getRolePermission } from "@/lib/permissions";
+import { getRolePermission, canSeePrecios, canEditOpenCompra } from "@/lib/permissions";
 import { loginSchema } from "@/lib/validators";
 
 export const runtime = "nodejs";
@@ -54,6 +54,8 @@ export async function POST(request: Request) {
         role: user.role,
       },
       permissions,
+      canSeePrices: await canSeePrecios(user),
+      canEditOpenCompra: await canEditOpenCompra(user),
       notice: "Sesión iniciada correctamente.",
     });
   } catch (error) {

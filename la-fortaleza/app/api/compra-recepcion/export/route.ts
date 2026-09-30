@@ -5,7 +5,8 @@ import { excelResponse, exportCompraExcel } from "@/lib/export/excel";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { compraDocs, compraLineas } from "@/lib/db/schema";
-import { requirePermission } from "@/lib/permissions";
+import { canSeePrecios, requirePermission } from "@/lib/permissions";
+import { monto } from "@/lib/money";
 
 export async function GET(request: Request) {
   try {
@@ -58,12 +59,17 @@ export async function GET(request: Request) {
           fechaRecepcion: l.fechaRecepcion,
           facturaNotaVenta: l.facturaNotaVenta,
           observaciones: l.observaciones,
+          precioUnitario: l.precioUnitario,
+          valorPedido: monto(l.cantidad, l.precioUnitario),
+          valorRecibido: monto(l.cantidadRecibida, l.precioUnitario),
         });
       }
       n += 1;
     }
 
-    const buffer = await exportCompraExcel(flat);
+    const buffer = await exportCompraExcel(flat, {
+      includeMoney: await canSeePrecios(user),
+    });
     return excelResponse(buffer, "compra-vs-recepcion.xlsx");
   } catch (error) {
     return handleRouteError(error);

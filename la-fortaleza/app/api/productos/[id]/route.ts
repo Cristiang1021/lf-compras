@@ -6,9 +6,12 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { products } from "@/lib/db/schema";
 import {
   assertCanEditLocked,
+  canSeePrecios,
   pickAllowedFields,
+  redactProductPrecios,
   requirePermission,
 } from "@/lib/permissions";
+import { round4 } from "@/lib/money";
 import { FIELD_KEYS, productUpdateSchema } from "@/lib/validators";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -23,7 +26,7 @@ export async function GET(request: Request, ctx: Ctx) {
       where: eq(products.id, id),
     });
     if (!row) return jsonError("Producto no encontrado", 404);
-    return jsonOk(row);
+    return jsonOk(await redactProductPrecios(user, row));
   } catch (error) {
     return handleRouteError(error);
   }
@@ -49,6 +52,16 @@ export async function PATCH(request: Request, ctx: Ctx) {
       "isActive",
     ]);
 
+    if (await canSeePrecios(user)) {
+      if (body.precio != null && Number.isFinite(body.precio)) {
+        allowed.precio = round4(body.precio);
+      } else if ("precio" in body) {
+        allowed.precio = body.precio;
+      }
+    } else if ("precio" in allowed) {
+      delete (allowed as { precio?: unknown }).precio;
+    }
+
     if (Object.keys(allowed).length === 0) {
       return jsonError("Ningún campo permitido para actualizar", 403);
     }
@@ -71,7 +84,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const updated = await db.query.products.findFirst({
       where: eq(products.id, id),
     });
-    return jsonOk(updated);
+    return jsonOk(updated ? await redactProductPrecios(user, updated) : updated);
   } catch (error) {
     return handleRouteError(error);
   }

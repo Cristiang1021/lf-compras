@@ -10,6 +10,7 @@
     "setup": "tsx --env-file=.env scripts/seed.ts",
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
     "db:import-productos": "tsx --env-file=.env scripts/import-productos.ts",
+    "db:import-precios": "tsx --env-file=.env scripts/import-precios.ts",
     "db:prepare-turso": "tsx --env-file=.env scripts/prepare-turso-db.ts",
     "db:export-sql": "tsx scripts/export-sql-dump.ts",
     "db:push-turso": "tsx --env-file=.env scripts/push-to-turso.ts",

@@ -5,7 +5,7 @@ import { excelResponse, exportProductosExcel } from "@/lib/export/excel";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { products } from "@/lib/db/schema";
-import { requirePermission } from "@/lib/permissions";
+import { canSeePrecios, requirePermission } from "@/lib/permissions";
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     const rows = await db.query.products.findMany({
       orderBy: [desc(products.codigo)],
     });
-    const buffer = await exportProductosExcel(rows.filter((r) => r.isActive));
+    const buffer = await exportProductosExcel(
+      rows.filter((r) => r.isActive),
+      { includePrecio: await canSeePrecios(user) },
+    );
     return excelResponse(buffer, "maestro-productos.xlsx");
   } catch (error) {
     return handleRouteError(error);

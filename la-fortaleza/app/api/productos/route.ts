@@ -5,8 +5,9 @@ import { handleRouteError, jsonError, jsonOk } from "@/lib/api/response";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { products } from "@/lib/db/schema";
-import { pickAllowedFields, requirePermission } from "@/lib/permissions";
+import { canSeePrecios, pickAllowedFields, redactProductPrecios, requirePermission } from "@/lib/permissions";
 import { FIELD_KEYS, productCreateSchema } from "@/lib/validators";
+import { round4 } from "@/lib/money";
 
 export async function GET(request: Request) {
   try {
@@ -47,8 +48,11 @@ export async function GET(request: Request) {
       .limit(pageSize)
       .offset(offset);
 
+    const seePrices = await canSeePrecios(user);
     return jsonOk({
-      items,
+      items: seePrices
+        ? items
+        : items.map(({ precio: _p, ...rest }) => rest),
       total: totalRow?.value ?? 0,
       page,
       pageSize,
@@ -81,12 +85,19 @@ export async function POST(request: Request) {
       return jsonError("Ya existe un producto con ese código", 409);
     }
 
+    const seePrices = await canSeePrecios(user);
+    const precio =
+      seePrices && body.precio != null && Number.isFinite(body.precio)
+        ? round4(body.precio)
+        : null;
+
     const id = randomUUID();
     await db.insert(products).values({
       id,
       codigo: allowed.codigo,
       producto: allowed.producto,
       unidadMedida: allowed.unidadMedida,
+      precio,
       createdBy: user.id,
       isActive: true,
     });
@@ -97,7 +108,7 @@ export async function POST(request: Request) {
 
     return jsonOk(
       {
-        ...created,
+        ...(await redactProductPrecios(user, created!)),
         lockedNotice:
           "Producto guardado. Las ediciones posteriores requieren permiso de actualización (normalmente solo super usuario).",
       },

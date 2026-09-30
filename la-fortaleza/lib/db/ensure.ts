@@ -1,6 +1,6 @@
 import { getLibsqlClient } from "./index";
 
-const ENSURE_VERSION = "docs-v6-password-reset";
+const ENSURE_VERSION = "docs-v10-edit-open-compra";
 
 const globalEnsure = globalThis as unknown as {
   __lfEnsureVersion?: string;
@@ -72,11 +72,18 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS role_module_uidx ON role_permissions(role, module);
 
+CREATE TABLE IF NOT EXISTS role_price_access (
+  role TEXT PRIMARY KEY,
+  can_see_prices INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
   codigo TEXT NOT NULL,
   producto TEXT NOT NULL,
   unidad_medida TEXT NOT NULL,
+  precio REAL,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_by TEXT REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -111,6 +118,7 @@ CREATE TABLE IF NOT EXISTS compra_lineas (
   codigo TEXT NOT NULL,
   producto TEXT NOT NULL,
   unidad_medida TEXT NOT NULL,
+  precio_unitario REAL,
   cantidad REAL,
   fecha_pedido TEXT,
   cantidad_recibida REAL,
@@ -138,6 +146,7 @@ CREATE TABLE IF NOT EXISTS transferencia_lineas (
   codigo TEXT NOT NULL,
   producto TEXT NOT NULL,
   unidad_medida TEXT NOT NULL,
+  precio_unitario REAL,
   cantidad REAL,
   fecha_transferencia TEXT,
   origen_bodega_id TEXT REFERENCES bodegas(id),
@@ -163,6 +172,7 @@ CREATE TABLE IF NOT EXISTS produccion_lineas (
   codigo TEXT NOT NULL,
   producto TEXT NOT NULL,
   unidad_medida TEXT NOT NULL,
+  precio_unitario REAL,
   cantidad REAL,
   fecha_produccion TEXT,
   detalle_produccion TEXT,
@@ -207,6 +217,38 @@ async function runSoftMigrations(client: import("@libsql/client").Client) {
     );
   } catch {
     // ignore
+  }
+  try {
+    await client.execute(`ALTER TABLE products ADD COLUMN precio REAL`);
+  } catch {
+    // ya existe
+  }
+  for (const table of ["compra_lineas", "transferencia_lineas", "produccion_lineas"]) {
+    try {
+      await client.execute(`ALTER TABLE ${table} ADD COLUMN precio_unitario REAL`);
+    } catch {
+      // ya existe
+    }
+  }
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS role_price_access (
+      role TEXT PRIMARY KEY,
+      can_see_prices INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  for (const role of ["SUPER_USUARIO", "CONTABILIDAD", "CHEF", "BODEGA"]) {
+    await client.execute({
+      sql: `INSERT OR IGNORE INTO role_price_access (role, can_see_prices) VALUES (?, 0)`,
+      args: [role],
+    });
+  }
+  try {
+    await client.execute(
+      `ALTER TABLE role_price_access ADD COLUMN can_edit_open_compra INTEGER NOT NULL DEFAULT 0`,
+    );
+  } catch {
+    // ya existe
   }
 }
 

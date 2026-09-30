@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   allowedDevOrigins: [
+    "10.0.70.29",
+    "localhost",
+    "127.0.0.1",
     "*.ngrok-free.app",
     "*.ngrok-free.dev",
     "*.ngrok.io",

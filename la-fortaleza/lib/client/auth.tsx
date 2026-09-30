@@ -39,6 +39,8 @@ type AuthState = {
   user: AuthUser | null;
   permissions: Permission[];
   loading: boolean;
+  canSeePrices: boolean;
+  canEditOpenCompra: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -54,6 +56,8 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [canSeePrices, setCanSeePrices] = useState(false);
+  const [canEditOpenCompra, setCanEditOpenCompra] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -61,22 +65,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) {
       setUser(null);
       setPermissions([]);
+      setCanSeePrices(false);
+      setCanEditOpenCompra(false);
       setLoading(false);
       return;
     }
     try {
       const data = await Promise.race([
-        api<{ user: AuthUser; permissions: Permission[] }>("/api/auth/me"),
+        api<{
+          user: AuthUser;
+          permissions: Permission[];
+          canSeePrices: boolean;
+          canEditOpenCompra: boolean;
+        }>(
+          "/api/auth/me",
+        ),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Tiempo de espera agotado")), 8000),
         ),
       ]);
       setUser(data.user);
       setPermissions(data.permissions);
+      setCanSeePrices(data.canSeePrices === true);
+      setCanEditOpenCompra(data.canEditOpenCompra === true);
     } catch {
       setToken(null);
       setUser(null);
       setPermissions([]);
+      setCanSeePrices(false);
+      setCanEditOpenCompra(false);
     } finally {
       setLoading(false);
     }
@@ -94,6 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: string;
       user: AuthUser;
       permissions: Permission[];
+      canSeePrices: boolean;
+      canEditOpenCompra: boolean;
     }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
@@ -101,12 +120,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.token);
     setUser(data.user);
     setPermissions(data.permissions);
+    setCanSeePrices(data.canSeePrices === true);
+    setCanEditOpenCompra(data.canEditOpenCompra === true);
   }, []);
 
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     setPermissions([]);
+    setCanSeePrices(false);
+    setCanEditOpenCompra(false);
   }, []);
 
   const can = useCallback(
@@ -134,8 +157,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, permissions, loading, login, logout, refresh, can, fieldOk }),
-    [user, permissions, loading, login, logout, refresh, can, fieldOk],
+    () => ({
+      user,
+      permissions,
+      loading,
+      canSeePrices,
+      canEditOpenCompra,
+      login,
+      logout,
+      refresh,
+      can,
+      fieldOk,
+    }),
+    [
+      user,
+      permissions,
+      loading,
+      canSeePrices,
+      canEditOpenCompra,
+      login,
+      logout,
+      refresh,
+      can,
+      fieldOk,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

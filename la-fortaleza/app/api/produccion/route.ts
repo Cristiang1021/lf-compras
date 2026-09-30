@@ -7,6 +7,7 @@ import { ensureDatabase } from "@/lib/db/ensure";
 import { produccionDocs, produccionLineas } from "@/lib/db/schema";
 import { pickAllowedFields, requirePermission } from "@/lib/permissions";
 import { getActiveProductOrThrow, productSnapshot } from "@/lib/services/products";
+import { presentMovLineas } from "@/lib/services/money-docs";
 import { todayISODate } from "@/lib/dates";
 import { FIELD_KEYS, produccionDocCreateSchema } from "@/lib/validators";
 
@@ -28,7 +29,11 @@ export async function GET(request: Request) {
         .from(produccionLineas)
         .where(eq(produccionLineas.docId, doc.id))
         .orderBy(asc(produccionLineas.orden));
-      result.push({ ...doc, totalLineas: lineas.length, lineas });
+      result.push({
+        ...doc,
+        totalLineas: lineas.length,
+        ...await presentMovLineas(user, lineas),
+      });
     }
     return jsonOk(result);
   } catch (error) {
@@ -91,7 +96,7 @@ export async function POST(request: Request) {
       {
         ...created,
         totalLineas: lineas.length,
-        lineas,
+        ...await presentMovLineas(user, lineas),
         lockedNotice: "Producción guardada y bloqueada (todas las líneas).",
       },
       { status: 201 },
