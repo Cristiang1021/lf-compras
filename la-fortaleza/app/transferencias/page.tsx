@@ -8,6 +8,10 @@ import { Alert, Panel } from "@/components/ui/Panel";
 import { UmMark } from "@/components/ui/UmMark";
 import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
+import {
+  ExportToolbar,
+  buildExportUrl,
+} from "@/components/forms/ExportToolbar";
 import { todayISODate } from "@/lib/dates";
 import { productWithUm } from "@/lib/client/labels";
 import { formatMonto, monto } from "@/lib/money";
@@ -71,6 +75,7 @@ export default function TransferenciasPage() {
   const seePrecios = canSeePrices;
   const router = useRouter();
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
   const [lineas, setLineas] = useState<LineaDraft[]>([]);
@@ -155,6 +160,17 @@ export default function TransferenciasPage() {
     setShowExtra(false);
     await load();
   });
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.length === docs.length) setSelectedIds([]);
+    else setSelectedIds(docs.map((d) => d.id));
+  }
 
   if (loading || !user) return null;
 
@@ -393,25 +409,29 @@ export default function TransferenciasPage() {
       )}
 
       <Panel title="Historial">
-        {can("transferencias", "canExport") && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ marginBottom: 8 }}
-            onClick={() =>
-              void downloadExport(
-                "/api/transferencias/export",
-                "transferencias.xlsx",
-              ).catch((e) => setError(e.message))
-            }
-          >
-            Descargar Excel
-          </button>
-        )}
+        <ExportToolbar
+          canExport={can("transferencias", "canExport")}
+          selectedCount={selectedIds.length}
+          totalCount={docs.length}
+          onToggleAll={toggleSelectAll}
+          onExportExcel={() =>
+            void downloadExport(
+              buildExportUrl("/api/transferencias/export", selectedIds, "xlsx"),
+              "transferencias.xlsx",
+            ).catch((e) => setError(e.message))
+          }
+          onExportPdf={() =>
+            void downloadExport(
+              buildExportUrl("/api/transferencias/export", selectedIds, "pdf"),
+              "transferencias.pdf",
+            ).catch((e) => setError(e.message))
+          }
+        />
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
+                <th></th>
                 <th>Registro</th>
                 <th>Fecha</th>
                 <th>Productos</th>
@@ -429,6 +449,13 @@ export default function TransferenciasPage() {
                   : "—";
                 return (
                   <tr key={d.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(d.id)}
+                        onChange={() => toggleSelect(d.id)}
+                      />
+                    </td>
                     <td>
                       Transferencia #{docs.length - idx}
                       {d.titulo ? ` — ${d.titulo}` : ""}

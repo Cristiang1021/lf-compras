@@ -95,7 +95,7 @@ export default function ProductosPage() {
         <div className="display-mark">Productos</div>
         <p>
           Consulta el catálogo de insumos. Puedes buscar por nombre o código y
-          descargar el listado en Excel.
+          descargar el listado en Excel o PDF.
         </p>
       </div>
 
@@ -114,18 +114,32 @@ export default function ProductosPage() {
               onChange={(e) => setQ(e.target.value)}
             />
             {can("productos", "canExport") && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() =>
-                  void downloadExport(
-                    "/api/productos/export",
-                    "maestro-productos.xlsx",
-                  ).catch((e) => setError(e.message))
-                }
-              >
-                Descargar Excel
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() =>
+                    void downloadExport(
+                      "/api/productos/export",
+                      "maestro-productos.xlsx",
+                    ).catch((e) => setError(e.message))
+                  }
+                >
+                  Descargar Excel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() =>
+                    void downloadExport(
+                      "/api/productos/export?format=pdf",
+                      "maestro-productos.pdf",
+                    ).catch((e) => setError(e.message))
+                  }
+                >
+                  Descargar PDF
+                </button>
+              </>
             )}
           </div>
           <div className="table-wrap">

@@ -1,12 +1,23 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { authenticateRequest } from "@/lib/auth/request";
-import { handleRouteError } from "@/lib/api/response";
-import { excelResponse, exportTransferenciasExcel } from "@/lib/export/excel";
+import { handleRouteError, jsonError } from "@/lib/api/response";
+import {
+  excelResponse,
+  exportTransferenciasExcel,
+} from "@/lib/export/excel";
+import {
+  buildTablePdf,
+  pdfResponse,
+  transferenciasPdfPayload,
+} from "@/lib/export/pdf";
+import { parseExportFormat, parseExportIds } from "@/lib/export/params";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { bodegas, transferenciaDocs, transferenciaLineas } from "@/lib/db/schema";
 import { canSeePrecios, requirePermission } from "@/lib/permissions";
 import { monto } from "@/lib/money";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
@@ -14,10 +25,25 @@ export async function GET(request: Request) {
     const { user } = await authenticateRequest(request);
     await requirePermission(user, "transferencias", "canExport");
 
-    const docs = await db
+    const selectedIds = parseExportIds(request);
+    const format = parseExportFormat(request);
+
+    let docs = await db
       .select()
       .from(transferenciaDocs)
       .orderBy(desc(transferenciaDocs.createdAt));
+
+    if (selectedIds.length > 0) {
+      docs = await db
+        .select()
+        .from(transferenciaDocs)
+        .where(inArray(transferenciaDocs.id, selectedIds))
+        .orderBy(desc(transferenciaDocs.createdAt));
+      if (docs.length === 0) {
+        return jsonError("No hay registros seleccionados válidos", 400);
+      }
+    }
+
     const allBodegas = await db.select().from(bodegas);
     const byId = new Map(allBodegas.map((b) => [b.id, b.nombre]));
 
@@ -53,9 +79,14 @@ export async function GET(request: Request) {
       n += 1;
     }
 
-    const buffer = await exportTransferenciasExcel(flat, {
-      includeMoney: await canSeePrecios(user),
-    });
+    const includeMoney = await canSeePrecios(user);
+    if (format === "pdf") {
+      const payload = transferenciasPdfPayload(flat, includeMoney);
+      const buffer = await buildTablePdf(payload);
+      return pdfResponse(buffer, "transferencias.pdf");
+    }
+
+    const buffer = await exportTransferenciasExcel(flat, { includeMoney });
     return excelResponse(buffer, "transferencias.xlsx");
   } catch (error) {
     return handleRouteError(error);

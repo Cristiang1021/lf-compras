@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, downloadExport } from "@/lib/client/api";
 import { useAuth } from "@/lib/client/auth";
@@ -8,6 +8,10 @@ import { Alert, Panel } from "@/components/ui/Panel";
 import { UmMark } from "@/components/ui/UmMark";
 import { ProductPicker, type Product } from "@/components/forms/ProductPicker";
 import { useConfirmSubmit } from "@/components/forms/ConfirmSave";
+import {
+  ExportToolbar,
+  buildExportUrl,
+} from "@/components/forms/ExportToolbar";
 import { todayISODate } from "@/lib/dates";
 import { productWithUm } from "@/lib/client/labels";
 import { formatMonto, monto } from "@/lib/money";
@@ -263,11 +267,6 @@ export default function CompraPage() {
     else setSelectedIds(docs.map((d) => d.id));
   }
 
-  const exportUrl = useMemo(() => {
-    if (selectedIds.length === 0) return "/api/compra-recepcion/export";
-    return `/api/compra-recepcion/export?ids=${selectedIds.join(",")}`;
-  }, [selectedIds]);
-
   if (loading || !user) return null;
 
   const compraCerrada = Boolean(
@@ -445,29 +444,24 @@ export default function CompraPage() {
       )}
 
       <Panel title="Historial de compras">
-        <div className="row" style={{ marginBottom: 10 }}>
-          {can("compra_recepcion", "canExport") && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() =>
-                void downloadExport(
-                  exportUrl,
-                  "compra-vs-recepcion.xlsx",
-                ).catch((e) => setError(e.message))
-              }
-            >
-              {selectedIds.length > 0
-                ? `Descargar Excel (${selectedIds.length})`
-                : "Descargar Excel"}
-            </button>
-          )}
-          <button type="button" className="btn btn-secondary" onClick={toggleSelectAll}>
-            {selectedIds.length === docs.length && docs.length > 0
-              ? "Quitar selección"
-              : "Seleccionar todos"}
-          </button>
-        </div>
+        <ExportToolbar
+          canExport={can("compra_recepcion", "canExport")}
+          selectedCount={selectedIds.length}
+          totalCount={docs.length}
+          onToggleAll={toggleSelectAll}
+          onExportExcel={() =>
+            void downloadExport(
+              buildExportUrl("/api/compra-recepcion/export", selectedIds, "xlsx"),
+              "compra-vs-recepcion.xlsx",
+            ).catch((e) => setError(e.message))
+          }
+          onExportPdf={() =>
+            void downloadExport(
+              buildExportUrl("/api/compra-recepcion/export", selectedIds, "pdf"),
+              "compra-vs-recepcion.pdf",
+            ).catch((e) => setError(e.message))
+          }
+        />
 
         <div className="table-wrap">
           <table className="data-table">

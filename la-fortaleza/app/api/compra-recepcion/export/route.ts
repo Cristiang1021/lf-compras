@@ -2,11 +2,19 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { authenticateRequest } from "@/lib/auth/request";
 import { handleRouteError, jsonError } from "@/lib/api/response";
 import { excelResponse, exportCompraExcel } from "@/lib/export/excel";
+import {
+  buildTablePdf,
+  compraPdfPayload,
+  pdfResponse,
+} from "@/lib/export/pdf";
+import { parseExportFormat, parseExportIds } from "@/lib/export/params";
 import { db } from "@/lib/db";
 import { ensureDatabase } from "@/lib/db/ensure";
 import { compraDocs, compraLineas } from "@/lib/db/schema";
 import { canSeePrecios, requirePermission } from "@/lib/permissions";
 import { monto } from "@/lib/money";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
@@ -14,11 +22,8 @@ export async function GET(request: Request) {
     const { user } = await authenticateRequest(request);
     await requirePermission(user, "compra_recepcion", "canExport");
 
-    const { searchParams } = new URL(request.url);
-    const idsParam = searchParams.get("ids")?.trim();
-    const selectedIds = idsParam
-      ? idsParam.split(",").map((s) => s.trim()).filter(Boolean)
-      : [];
+    const selectedIds = parseExportIds(request);
+    const format = parseExportFormat(request);
 
     let docs = await db
       .select()
@@ -67,9 +72,14 @@ export async function GET(request: Request) {
       n += 1;
     }
 
-    const buffer = await exportCompraExcel(flat, {
-      includeMoney: await canSeePrecios(user),
-    });
+    const includeMoney = await canSeePrecios(user);
+    if (format === "pdf") {
+      const payload = compraPdfPayload(flat, includeMoney);
+      const buffer = await buildTablePdf(payload);
+      return pdfResponse(buffer, "compra-vs-recepcion.pdf");
+    }
+
+    const buffer = await exportCompraExcel(flat, { includeMoney });
     return excelResponse(buffer, "compra-vs-recepcion.xlsx");
   } catch (error) {
     return handleRouteError(error);

@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import ExcelJS from "exceljs";
 
 type SheetColumn = { name: string; money?: boolean };
@@ -17,13 +19,46 @@ function moneyValue(value: number | null | undefined) {
   return Math.round(value * 10000) / 10000;
 }
 
+function logoFile() {
+  return path.join(process.cwd(), "public", "logo-la-fortaleza.png");
+}
+
 async function buildTableWorkbook(opts: SheetTableOpts) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(opts.sheetName);
 
-  ws.mergeCells(1, 1, 1, Math.max(opts.columns.length, 1));
-  ws.getCell(1, 1).value = opts.title;
-  ws.getCell(1, 1).font = { bold: true, size: 14 };
+  let titleRow = 1;
+  let tableStart = 3;
+  const logo = logoFile();
+  if (fs.existsSync(logo)) {
+    try {
+      const imgId = wb.addImage({
+        buffer: fs.readFileSync(logo) as unknown as ExcelJS.Buffer,
+        extension: "png",
+      });
+      ws.addImage(imgId, {
+        tl: { col: 0, row: 0 },
+        ext: { width: 48, height: 48 },
+      });
+      ws.getRow(1).height = 40;
+      titleRow = 1;
+      ws.mergeCells(1, 2, 1, Math.max(opts.columns.length, 2));
+      ws.getCell(1, 2).value = "La Fortaleza";
+      ws.getCell(1, 2).font = { bold: true, size: 14, color: { argb: "FFA21112" } };
+      ws.mergeCells(2, 2, 2, Math.max(opts.columns.length, 2));
+      ws.getCell(2, 2).value = opts.title;
+      ws.getCell(2, 2).font = { bold: true, size: 12 };
+      tableStart = 4;
+    } catch {
+      ws.mergeCells(1, 1, 1, Math.max(opts.columns.length, 1));
+      ws.getCell(1, 1).value = opts.title;
+      ws.getCell(1, 1).font = { bold: true, size: 14 };
+    }
+  } else {
+    ws.mergeCells(titleRow, 1, titleRow, Math.max(opts.columns.length, 1));
+    ws.getCell(titleRow, 1).value = opts.title;
+    ws.getCell(titleRow, 1).font = { bold: true, size: 14 };
+  }
 
   const dataRows =
     opts.rows.length > 0
@@ -39,7 +74,7 @@ async function buildTableWorkbook(opts: SheetTableOpts) {
 
   ws.addTable({
     name: opts.tableName,
-    ref: "A3",
+    ref: `A${tableStart}`,
     headerRow: true,
     totalsRow: false,
     style: {
@@ -60,10 +95,11 @@ async function buildTableWorkbook(opts: SheetTableOpts) {
     if (col.money) column.numFmt = MONEY_FMT;
   });
 
+  const dataStartRow = tableStart + 1;
   for (let r = 0; r < dataRows.length; r += 1) {
     opts.columns.forEach((col, c) => {
       if (!col.money) return;
-      const cell = ws.getCell(4 + r, c + 1);
+      const cell = ws.getCell(dataStartRow + r, c + 1);
       if (typeof cell.value === "number") cell.numFmt = MONEY_FMT;
     });
   }
