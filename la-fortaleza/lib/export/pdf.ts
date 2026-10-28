@@ -1,6 +1,5 @@
-import fs from "fs";
-import path from "path";
 import PDFDocument from "pdfkit";
+import { readLogoBuffer } from "./logo";
 
 type PdfColumn = { name: string; money?: boolean };
 
@@ -14,9 +13,6 @@ type PdfTableOpts = {
 const BRAND = "#A21112";
 const MONEY_DIGITS = 4;
 
-function logoPath() {
-  return path.join(process.cwd(), "public", "logo-la-fortaleza.png");
-}
 
 function cellText(value: string | number | null | undefined, money?: boolean) {
   if (value === null || value === undefined || value === "") return "";
@@ -51,12 +47,12 @@ export async function buildTablePdf(opts: PdfTableOpts): Promise<Buffer> {
   const margin = 36;
   const contentWidth = pageWidth - margin * 2;
 
-  const logo = logoPath();
-  if (fs.existsSync(logo)) {
+  const logo = readLogoBuffer();
+  if (logo) {
     try {
       doc.image(logo, margin, margin - 4, { width: 42, height: 42 });
-    } catch {
-      // si el archivo no es válido, seguimos con texto
+    } catch (err) {
+      console.warn("No se pudo incrustar el logo en PDF:", err);
     }
   }
 

@@ -1,6 +1,5 @@
-import fs from "fs";
-import path from "path";
 import ExcelJS from "exceljs";
+import { readLogoBuffer } from "./logo";
 
 type SheetColumn = { name: string; money?: boolean };
 
@@ -19,29 +18,24 @@ function moneyValue(value: number | null | undefined) {
   return Math.round(value * 10000) / 10000;
 }
 
-function logoFile() {
-  return path.join(process.cwd(), "public", "logo-la-fortaleza.png");
-}
-
 async function buildTableWorkbook(opts: SheetTableOpts) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(opts.sheetName);
 
-  let titleRow = 1;
   let tableStart = 3;
-  const logo = logoFile();
-  if (fs.existsSync(logo)) {
+  const logo = readLogoBuffer();
+  if (logo) {
     try {
       const imgId = wb.addImage({
-        buffer: fs.readFileSync(logo) as unknown as ExcelJS.Buffer,
+        buffer: logo as unknown as ExcelJS.Buffer,
         extension: "png",
       });
       ws.addImage(imgId, {
         tl: { col: 0, row: 0 },
-        ext: { width: 48, height: 48 },
+        ext: { width: 56, height: 56 },
+        editAs: "oneCell",
       });
-      ws.getRow(1).height = 40;
-      titleRow = 1;
+      ws.getRow(1).height = 44;
       ws.mergeCells(1, 2, 1, Math.max(opts.columns.length, 2));
       ws.getCell(1, 2).value = "La Fortaleza";
       ws.getCell(1, 2).font = { bold: true, size: 14, color: { argb: "FFA21112" } };
@@ -55,9 +49,9 @@ async function buildTableWorkbook(opts: SheetTableOpts) {
       ws.getCell(1, 1).font = { bold: true, size: 14 };
     }
   } else {
-    ws.mergeCells(titleRow, 1, titleRow, Math.max(opts.columns.length, 1));
-    ws.getCell(titleRow, 1).value = opts.title;
-    ws.getCell(titleRow, 1).font = { bold: true, size: 14 };
+    ws.mergeCells(1, 1, 1, Math.max(opts.columns.length, 1));
+    ws.getCell(1, 1).value = opts.title;
+    ws.getCell(1, 1).font = { bold: true, size: 14 };
   }
 
   const dataRows =

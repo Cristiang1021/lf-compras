@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // libsql: archivo local en desarrollo, Turso en Vercel
   serverExternalPackages: ["@libsql/client", "nodemailer", "pdfkit"],
+  outputFileTracingIncludes: {
+    "/api/**": ["./lib/export/assets/**", "./public/logo-la-fortaleza.png"],
+  },
   turbopack: {
     root: process.cwd(),
   },

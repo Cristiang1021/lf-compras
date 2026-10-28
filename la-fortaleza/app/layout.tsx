@@ -14,6 +14,9 @@ const display = Outfit({
 export const metadata: Metadata = {
   title: "La Fortaleza — Control",
   description: "Control de inventario y producciones del restaurante",
+  icons: {
+    icon: "/logo-la-fortaleza.png",
+  },
 };
 
 export default function RootLayout({
